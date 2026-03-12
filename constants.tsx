@@ -4,17 +4,17 @@ import { Service, Station } from './types';
 
 // Fix: Added missing 'active' property to initial services
 export const INITIAL_SERVICES: Service[] = [
-  { id: '1', name: 'Triaje', prefix: 'TR', color: '#3b82f6', description: 'Evaluación inicial de pacientes', active: true },
-  { id: '2', name: 'Farmacia', prefix: 'FM', color: '#10b981', description: 'Entrega de medicamentos', active: true },
-  { id: '3', name: 'Laboratorio', prefix: 'LB', color: '#f59e0b', description: 'Toma de muestras', active: true },
-  { id: '4', name: 'Consultas', prefix: 'CN', color: '#8b5cf6', description: 'Atención médica general', active: true },
+  { id: '00000000-0000-0000-0000-000000000001', name: 'Triaje', prefix: 'TR', color: '#3b82f6', description: 'Evaluación inicial de pacientes', active: true },
+  { id: '00000000-0000-0000-0000-000000000002', name: 'Farmacia', prefix: 'FM', color: '#10b981', description: 'Entrega de medicamentos', active: true },
+  { id: '00000000-0000-0000-0000-000000000003', name: 'Laboratorio', prefix: 'LB', color: '#f59e0b', description: 'Toma de muestras', active: true },
+  { id: '00000000-0000-0000-0000-000000000004', name: 'Consultas', prefix: 'CN', color: '#8b5cf6', description: 'Atención médica general', active: true },
 ];
 
 // Fix: Added missing 'active' property to initial stations
 export const INITIAL_STATIONS: Station[] = [
-  { id: 's1', name: 'Módulo 01', operatorName: 'Juan Pérez', serviceIds: ['1', '4'], active: true },
-  { id: 's2', name: 'Módulo 02', operatorName: 'María García', serviceIds: ['2'], active: true },
-  { id: 's3', name: 'Módulo 03', operatorName: 'Carlos Ruiz', serviceIds: ['3'], active: true },
+  { id: '00000000-0000-0000-0000-000000000011', name: 'Módulo 01', operatorName: 'Juan Pérez', serviceIds: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000004'], active: true },
+  { id: '00000000-0000-0000-0000-000000000012', name: 'Módulo 02', operatorName: 'María García', serviceIds: ['00000000-0000-0000-0000-000000000002'], active: true },
+  { id: '00000000-0000-0000-0000-000000000013', name: 'Módulo 03', operatorName: 'Carlos Ruiz', serviceIds: ['00000000-0000-0000-0000-000000000003'], active: true },
 ];
 
 export const ICONS = {

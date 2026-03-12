@@ -5,7 +5,7 @@ import { PrinterService } from '../services/PrinterService';
 interface TotemViewProps {
   services: Service[];
   nextSequence: Record<string, number>;
-  onIssueTicket: (serviceId: string, priority: boolean) => void;
+  onIssueTicket: (serviceId: string, priority: boolean) => Promise<any>;
   printers: Printer[];
 }
 
@@ -21,24 +21,22 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
   const [issuedTicket, setIssuedTicket] = useState<IssuedTicketInfo | null>(null);
   const [isPriority, setIsPriority] = useState<boolean | null>(null);
 
-  const handleIssue = (service: Service) => {
+  const handleIssue = async (service: Service) => {
     if (isPriority === null) return;
 
-    // Calculamos el código real basado en la secuencia actual antes de emitir
-    const sequence = nextSequence[service.id] || 1;
-    const realCode = `${service.prefix}${sequence.toString().padStart(3, '0')}`;
-
-    // Emitimos el ticket al store
-    onIssueTicket(service.id, isPriority);
+    // Emitimos el ticket al store y esperamos el resultado real
+    const ticket = await onIssueTicket(service.id, isPriority);
     
-    // Mostramos la pantalla de éxito con el código completo real
-    setIssuedTicket({
-      code: realCode,
-      serviceName: service.name,
-      color: service.color,
-      prefix: service.prefix,
-      isPriority
-    });
+    if (ticket) {
+      // Mostramos la pantalla de éxito con el código real retornado por la DB
+      setIssuedTicket({
+        code: ticket.code,
+        serviceName: service.name,
+        color: service.color,
+        prefix: service.prefix,
+        isPriority
+      });
+    }
   };
 
   // Temporizador para volver al menú principal (3 segundos) y disparar impresión

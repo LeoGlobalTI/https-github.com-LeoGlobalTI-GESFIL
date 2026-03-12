@@ -1,20 +1,39 @@
 import React, { useState } from 'react';
 
 interface LoginViewProps {
-  onLogin: (username: string, password?: string) => boolean;
+  onLogin: (username: string, password?: string) => Promise<boolean>;
+  onSeed: () => Promise<void>;
 }
 
-const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
+const LoginView: React.FC<LoginViewProps> = ({ onLogin, onSeed }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = onLogin(username, password);
-    if (!success) {
+    setLoading(true);
+    try {
+      const success = await onLogin(username, password);
+      if (!success) {
+        setError(true);
+        setTimeout(() => setError(false), 2000);
+      }
+    } catch (err) {
       setError(true);
       setTimeout(() => setError(false), 2000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSeed = async () => {
+    if (confirm("¿Deseas inicializar la base de datos con los datos por defecto (incluyendo el usuario superadmin)?")) {
+      setSeeding(true);
+      await onSeed();
+      setSeeding(false);
     }
   };
 
@@ -65,14 +84,25 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
           <button 
             type="submit"
-            className="w-full py-5 bg-blue-600 text-white font-bold rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-[0.98] transition-all text-lg"
+            disabled={loading}
+            className={`w-full py-5 bg-blue-600 text-white font-bold rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-[0.98] transition-all text-lg ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            Iniciar Sesión
+            {loading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
           </button>
 
-          <div className="pt-4 flex items-center justify-between text-xs text-slate-400 font-bold border-t border-slate-100">
-            <span>v4.0.2 Stable</span>
-            <span className="text-blue-600 cursor-pointer hover:underline">Recuperar Acceso</span>
+          <div className="pt-4 flex flex-col gap-4 text-xs text-slate-400 font-bold border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <span>v4.0.2 Stable</span>
+              <span className="text-blue-600 cursor-pointer hover:underline">Recuperar Acceso</span>
+            </div>
+            <button 
+              type="button"
+              onClick={handleSeed}
+              disabled={seeding}
+              className="text-indigo-600 hover:text-indigo-800 transition-colors text-center w-full py-2 bg-indigo-50 rounded-xl border border-indigo-100"
+            >
+              {seeding ? 'Inicializando...' : '¿Primera vez? Inicializar Base de Datos'}
+            </button>
           </div>
         </form>
 

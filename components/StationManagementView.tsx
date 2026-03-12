@@ -164,7 +164,7 @@ const StationManagementView: React.FC<StationManagementViewProps> = ({ stations,
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Operador Responsable</label>
                 <input 
-                  type="text" required
+                  type="text" placeholder="Ej: Juan Pérez (Opcional)"
                   value={formData.operatorName}
                   onChange={e => setFormData({...formData, operatorName: e.target.value})}
                   className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-600/20"

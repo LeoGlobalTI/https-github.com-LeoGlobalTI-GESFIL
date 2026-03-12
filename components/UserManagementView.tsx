@@ -186,7 +186,6 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAdd, o
                 <div className="p-8 bg-indigo-50/50 rounded-[2.5rem] border border-indigo-100">
                   <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4 text-center">Vinculación de Terminal</label>
                   <select 
-                    required={formData.role === UserRole.STAFF}
                     value={formData.assignedStationId}
                     onChange={e => setFormData({...formData, assignedStationId: e.target.value})}
                     className="w-full px-5 py-3 bg-white border border-indigo-100 rounded-xl outline-none font-black text-indigo-600 text-sm shadow-sm"

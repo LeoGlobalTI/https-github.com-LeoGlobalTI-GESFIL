@@ -1,89 +1,293 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Ticket, TicketStatus, Service, Station, QmsState, User, UserRole, Printer, PrinterType } from '../types';
+import { Ticket, TicketStatus, Service, Station, QmsState, User, UserRole, Printer } from '../types';
+import { supabase } from '../services/supabase';
 import { INITIAL_SERVICES, INITIAL_STATIONS } from '../constants';
 
-const DEFAULT_USERS: User[] = [
-  { id: 'u1', username: 'superadmin', password: '123', name: 'Super Administrador', role: UserRole.SUPERADMIN },
-  { id: 'u2', username: 'admin', password: '123', name: 'Gestor Operativo', role: UserRole.ADMIN },
-  { id: 'u3', username: 'staff1', password: '123', name: 'Operario 01', role: UserRole.STAFF, assignedStationId: 's1' },
-  { id: 'u4', username: 'totem', password: '123', name: 'Tótem Entrada', role: UserRole.TOTEM },
-  { id: 'u5', username: 'live', password: '123', name: 'Display Live', role: UserRole.DISPLAY },
+const DEFAULT_USERS: Omit<User, 'id'>[] = [
+  { username: 'superadmin', password: '123', name: 'Super Administrador', role: UserRole.SUPERADMIN },
+  { username: 'admin', password: '123', name: 'Gestor Operativo', role: UserRole.ADMIN },
+  { username: 'staff1', password: '123', name: 'Operario 01', role: UserRole.STAFF, assignedStationId: '00000000-0000-0000-0000-000000000011' },
+  { username: 'totem', password: '123', name: 'Tótem Entrada', role: UserRole.TOTEM },
+  { username: 'live', password: '123', name: 'Display Live', role: UserRole.DISPLAY },
 ];
 
-const STORAGE_KEY = 'gesfil_qms_v2_core';
-
 export const useQmsStore = () => {
-  const getInitialState = (): QmsState => {
+  const [state, setState] = useState<QmsState>({
+    services: [],
+    stations: [],
+    tickets: [],
+    nextSequence: {},
+    users: [],
+    currentUser: null,
+    printers: []
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  // Fetch Initial Data
+  const fetchData = useCallback(async () => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...parsed,
-          services: (parsed.services || INITIAL_SERVICES).map((s: any) => ({
-            ...s,
-            active: typeof s.active === 'boolean' ? s.active : true
-          })),
-          stations: (parsed.stations || INITIAL_STATIONS).map((s: any) => ({
-            ...s,
-            active: typeof s.active === 'boolean' ? s.active : true,
-            serviceIds: Array.isArray(s.serviceIds) ? s.serviceIds : []
-          })),
-          users: (parsed.users || DEFAULT_USERS).map((u: any) => ({
-            ...u,
-            role: Object.values(UserRole).includes(u.role) ? u.role : UserRole.STAFF
-          })),
-          tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
-          currentUser: parsed.currentUser || null,
-          nextSequence: parsed.nextSequence || {},
-          printers: Array.isArray(parsed.printers) ? parsed.printers : []
-        };
-      }
-    } catch (e) {
-      console.error("Storage Recovery Error:", e);
+      setLoading(true);
+      const [
+        { data: services },
+        { data: stations },
+        { data: tickets },
+        { data: users },
+        { data: printers },
+        { data: config }
+      ] = await Promise.all([
+        supabase.from('services').select('*').order('name'),
+        supabase.from('stations').select('*').order('name'),
+        supabase.from('tickets').select('*').order('created_at', { ascending: false }),
+        supabase.from('users').select('*'),
+        supabase.from('printers').select('*'),
+        supabase.from('system_config').select('*').eq('key', 'nextSequence').single()
+      ]);
+
+      setState(prev => ({
+        ...prev,
+        services: services || [],
+        stations: (stations || []).map(s => ({
+          ...s,
+          serviceIds: s.service_ids || [] // Map snake_case to camelCase if needed, but schema uses service_ids
+        })),
+        tickets: (tickets || []).map(t => ({
+          ...t,
+          createdAt: new Date(t.created_at).getTime(),
+          calledAt: t.called_at ? new Date(t.called_at).getTime() : undefined,
+          startedAt: t.started_at ? new Date(t.started_at).getTime() : undefined,
+          endedAt: t.ended_at ? new Date(t.ended_at).getTime() : undefined,
+          serviceId: t.service_id,
+          stationId: t.station_id,
+          metadata: { recalledCount: t.recalled_count, priority: t.priority }
+        })),
+        users: (users || []).map(u => ({
+          ...u,
+          assignedStationId: u.assigned_station_id
+        })),
+        printers: printers || [],
+        nextSequence: config?.value || {}
+      }));
+    } catch (error) {
+      console.error('Error fetching data from Supabase:', error);
+    } finally {
+      setLoading(false);
     }
-    return {
-      services: INITIAL_SERVICES,
-      stations: INITIAL_STATIONS,
-      tickets: [],
-      nextSequence: INITIAL_SERVICES.reduce((acc, s) => ({ ...acc, [s.id]: 101 }), {}),
-      users: DEFAULT_USERS,
-      currentUser: null,
-      printers: []
-    };
-  };
-
-  const [state, setState] = useState<QmsState>(getInitialState);
-
-  // Sincronización Multi-Pestaña (Crucial para QMS en red local)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && e.newValue) {
-        setState(JSON.parse(e.newValue));
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    fetchData();
 
-  const login = useCallback((username: string, password?: string) => {
-    const user = state.users.find(u => 
-      u.username.toLowerCase() === username.trim().toLowerCase() && 
-      u.password === password
-    );
-    if (user) {
+    // Realtime Subscriptions
+    const channels = [
+      supabase.channel('services').on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, fetchData),
+      supabase.channel('stations').on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, fetchData),
+      supabase.channel('tickets').on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchData),
+      supabase.channel('users').on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, fetchData),
+      supabase.channel('printers').on('postgres_changes', { event: '*', schema: 'public', table: 'printers' }, fetchData),
+      supabase.channel('system_config').on('postgres_changes', { event: '*', schema: 'public', table: 'system_config' }, fetchData)
+    ];
+
+    channels.forEach(channel => channel.subscribe());
+
+    return () => {
+      channels.forEach(channel => supabase.removeChannel(channel));
+    };
+  }, [fetchData]);
+
+  // Actions
+  const login = useCallback(async (username: string, password?: string) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username.trim().toLowerCase())
+      .eq('password', password)
+      .single();
+
+    if (data && !error) {
+      const user: User = {
+        ...data,
+        assignedStationId: data.assigned_station_id
+      };
       setState(prev => ({ ...prev, currentUser: user }));
       return true;
     }
     return false;
-  }, [state.users]);
+  }, []);
 
   const logout = useCallback(() => setState(prev => ({ ...prev, currentUser: null })), []);
+
+  const addTicket = useCallback(async (serviceId: string, priority: boolean = false) => {
+    const service = state.services.find(s => s.id === serviceId);
+    if (!service) return null;
+
+    // Call RPC to get next sequence atomically
+    const { data: sequence, error: rpcError } = await supabase.rpc('increment_sequence', { s_id: serviceId });
+    
+    if (rpcError) {
+      console.error('Error incrementing sequence:', rpcError);
+      return null;
+    }
+
+    const newTicket = {
+      code: `${service.prefix}${sequence.toString().padStart(3, '0')}`,
+      service_id: serviceId,
+      status: TicketStatus.WAITING,
+      priority,
+      recalled_count: 0
+    };
+
+    const { data, error } = await supabase.from('tickets').insert(newTicket).select().single();
+
+    if (error) {
+      console.error('Error adding ticket:', error);
+      return null;
+    }
+
+    return {
+      ...data,
+      createdAt: new Date(data.created_at).getTime(),
+      serviceId: data.service_id,
+      metadata: { recalledCount: data.recalled_count, priority: data.priority }
+    } as Ticket;
+  }, [state.services]);
+
+  const updateTicketStatus = useCallback(async (ticketId: string, newStatus: TicketStatus, stationId: string) => {
+    const updates: any = { status: newStatus };
+
+    if (newStatus === TicketStatus.CALLING) {
+      updates.called_at = new Date().toISOString();
+      updates.station_id = stationId;
+      // Recalled count increment is handled by fetching current state or we could do it in SQL
+      const ticket = state.tickets.find(t => t.id === ticketId);
+      if (ticket) {
+        updates.recalled_count = (ticket.metadata?.recalledCount || 0) + 1;
+      }
+    } else if (newStatus === TicketStatus.ATTENDING) {
+      updates.started_at = new Date().toISOString();
+    } else if ([TicketStatus.COMPLETED, TicketStatus.CANCELLED].includes(newStatus)) {
+      updates.ended_at = new Date().toISOString();
+    }
+
+    const { error } = await supabase
+      .from('tickets')
+      .update(updates)
+      .eq('id', ticketId);
+
+    if (error) console.error('Error updating ticket status:', error);
+  }, [state.tickets]);
+
+  const addUser = async (u: Omit<User, 'id'>) => {
+    const { error } = await supabase.from('users').insert({
+      username: u.username,
+      password: u.password,
+      name: u.name,
+      role: u.role,
+      assigned_station_id: u.assignedStationId
+    });
+    if (error) console.error('Error adding user:', error);
+  };
+
+  const updateUser = async (id: string, u: Partial<User>) => {
+    const updates: any = { ...u };
+    if (u.assignedStationId !== undefined) {
+      updates.assigned_station_id = u.assignedStationId;
+      delete updates.assignedStationId;
+    }
+    const { error } = await supabase.from('users').update(updates).eq('id', id);
+    if (error) console.error('Error updating user:', error);
+  };
+
+  const deleteUser = async (id: string) => {
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (error) console.error('Error deleting user:', error);
+  };
+
+  const addService = async (s: Omit<Service, 'id'>) => {
+    const { error } = await supabase.from('services').insert({
+      name: s.name,
+      prefix: s.prefix,
+      color: s.color,
+      description: s.description,
+      active: s.active,
+      start_time: s.startTime,
+      end_time: s.endTime
+    });
+    if (error) console.error('Error adding service:', error);
+  };
+
+  const updateService = async (id: string, s: Partial<Service>) => {
+    const updates: any = { ...s };
+    if (s.startTime !== undefined) {
+      updates.start_time = s.startTime;
+      delete updates.startTime;
+    }
+    if (s.endTime !== undefined) {
+      updates.end_time = s.endTime;
+      delete updates.endTime;
+    }
+    const { error } = await supabase.from('services').update(updates).eq('id', id);
+    if (error) console.error('Error updating service:', error);
+  };
+
+  const deleteService = async (id: string) => {
+    const { error } = await supabase.from('services').delete().eq('id', id);
+    if (error) console.error('Error deleting service:', error);
+  };
+
+  const addStation = async (s: Omit<Station, 'id'>) => {
+    const { error } = await supabase.from('stations').insert({
+      name: s.name,
+      operator_name: s.operatorName,
+      service_ids: s.serviceIds,
+      active: s.active
+    });
+    if (error) console.error('Error adding station:', error);
+  };
+
+  const updateStation = async (id: string, s: Partial<Station>) => {
+    const updates: any = { ...s };
+    if (s.operatorName !== undefined) {
+      updates.operator_name = s.operatorName;
+      delete updates.operatorName;
+    }
+    if (s.serviceIds !== undefined) {
+      updates.service_ids = s.serviceIds;
+      delete updates.serviceIds;
+    }
+    const { error } = await supabase.from('stations').update(updates).eq('id', id);
+    if (error) console.error('Error updating station:', error);
+  };
+
+  const deleteStation = async (id: string) => {
+    const { error } = await supabase.from('stations').delete().eq('id', id);
+    if (error) console.error('Error deleting station:', error);
+  };
+
+  const addPrinter = async (pr: Omit<Printer, 'id'>) => {
+    const { error } = await supabase.from('printers').insert(pr);
+    if (error) console.error('Error adding printer:', error);
+  };
+
+  const updatePrinter = async (id: string, pr: Partial<Printer>) => {
+    const { error } = await supabase.from('printers').update(pr).eq('id', id);
+    if (error) console.error('Error updating printer:', error);
+  };
+
+  const deletePrinter = async (id: string) => {
+    const { error } = await supabase.from('printers').delete().eq('id', id);
+    if (error) console.error('Error deleting printer:', error);
+  };
+
+  const resetSystem = async () => {
+    if (confirm("¿Confirmar purga diaria? Esta acción reiniciará los turnos a 101 y vaciará la base de datos de tickets del día.")) {
+      const { error: deleteError } = await supabase.from('tickets').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+      const { error: configError } = await supabase.from('system_config').update({ value: {} }).eq('key', 'nextSequence');
+      
+      if (deleteError || configError) console.error('Error resetting system:', deleteError || configError);
+    }
+  };
 
   const isServiceActive = useCallback((service: Service) => {
     if (!service.active) return false;
@@ -98,132 +302,80 @@ export const useQmsStore = () => {
     return true;
   }, []);
 
-  const addTicket = useCallback((serviceId: string, priority: boolean = false) => {
-    setState(prev => {
-      const service = prev.services.find(s => s.id === serviceId);
-      if (!service || !isServiceActive(service)) return prev;
+  const seedDatabase = async () => {
+    try {
+      setLoading(true);
+      console.log('Iniciando inicialización de base de datos...');
+
+      // 1. Seed Services
+      const { data: existingServices, error: serviceError } = await supabase.from('services').select('id');
+      if (serviceError) throw new Error(`Error al consultar servicios: ${serviceError.message}`);
+
+      // Use upsert to be idempotent
+      const { error: insertServiceError } = await supabase.from('services').upsert(INITIAL_SERVICES.map(s => ({
+        id: s.id,
+        name: s.name,
+        prefix: s.prefix,
+        color: s.color,
+        description: s.description,
+        active: s.active
+      })), { onConflict: 'name' });
       
-      const sequence = prev.nextSequence[serviceId] || 101;
-      const newTicket: Ticket = {
-        id: crypto.randomUUID(),
-        code: `${service.prefix}-${sequence}`,
-        serviceId,
-        status: TicketStatus.WAITING,
-        createdAt: Date.now(),
-        metadata: { recalledCount: 0, priority }
-      };
+      if (insertServiceError) throw new Error(`Error al sincronizar servicios: ${insertServiceError.message}`);
+      console.log('Servicios sincronizados.');
 
-      return {
-        ...prev,
-        tickets: [...prev.tickets, newTicket],
-        nextSequence: { ...prev.nextSequence, [serviceId]: sequence + 1 }
-      };
-    });
-  }, [isServiceActive]);
+      // 2. Seed Stations
+      const { data: existingStations, error: stationError } = await supabase.from('stations').select('id');
+      if (stationError) throw new Error(`Error al consultar módulos: ${stationError.message}`);
 
-  const updateTicketStatus = useCallback((ticketId: string, newStatus: TicketStatus, stationId: string) => {
-    setState(prev => {
-      const index = prev.tickets.findIndex(t => t.id === ticketId);
-      if (index === -1) return prev;
+      const { error: insertStationError } = await supabase.from('stations').upsert(INITIAL_STATIONS.map(s => ({
+        id: s.id,
+        name: s.name,
+        operator_name: s.operatorName,
+        service_ids: s.serviceIds,
+        active: s.active
+      })), { onConflict: 'name' });
       
-      const ticket = prev.tickets[index];
-      const station = prev.stations.find(s => s.id === stationId);
+      if (insertStationError) throw new Error(`Error al sincronizar módulos: ${insertStationError.message}`);
+      console.log('Módulos sincronizados.');
 
-      // Bloqueo de Seguridad: No permitir llamar tickets si el módulo no está activo
-      if (station && !station.active && newStatus === TicketStatus.CALLING) return prev;
+      // 3. Seed Users
+      const { error: insertUserError } = await supabase.from('users').upsert(DEFAULT_USERS.map(u => ({
+        username: u.username,
+        password: u.password,
+        name: u.name,
+        role: u.role,
+        assigned_station_id: u.assignedStationId
+      })), { onConflict: 'username' });
+      
+      if (insertUserError) throw new Error(`Error al sincronizar usuarios: ${insertUserError.message}`);
+      console.log('Usuarios sincronizados.');
 
-      // Validación de Seguridad: Un ticket ya en atención no puede ser capturado por otro módulo
-      if (newStatus === TicketStatus.CALLING && ticket.status !== TicketStatus.WAITING && ticket.stationId !== stationId) {
-        return prev;
+      // 4. Seed System Config
+      const { data: existingConfig, error: configError } = await supabase.from('system_config').select('key').eq('key', 'nextSequence').single();
+      
+      if (configError && configError.code !== 'PGRST116') { // PGRST116 is "no rows found"
+        throw new Error(`Error al consultar configuración: ${configError.message}`);
       }
 
-      // Máquina de Estados Definida
-      const isLegal = 
-        (ticket.status === TicketStatus.WAITING && newStatus === TicketStatus.CALLING) ||
-        (ticket.status === TicketStatus.CALLING && [TicketStatus.CALLING, TicketStatus.ATTENDING, TicketStatus.CANCELLED].includes(newStatus)) ||
-        (ticket.status === TicketStatus.ATTENDING && [TicketStatus.COMPLETED, TicketStatus.CANCELLED].includes(newStatus));
-
-      if (!isLegal) return prev;
-
-      const updatedTickets = [...prev.tickets];
-      const updates: Partial<Ticket> = { status: newStatus };
-
-      if (newStatus === TicketStatus.CALLING) {
-        updates.calledAt = Date.now();
-        updates.stationId = stationId;
-        updates.metadata = { 
-          ...ticket.metadata, 
-          recalledCount: (ticket.metadata?.recalledCount || 0) + 1 
-        };
-      } else if (newStatus === TicketStatus.ATTENDING) {
-        updates.startedAt = ticket.startedAt || Date.now();
-      } else if ([TicketStatus.COMPLETED, TicketStatus.CANCELLED].includes(newStatus)) {
-        updates.endedAt = Date.now();
+      if (!existingConfig) {
+        const { error: insertConfigError } = await supabase.from('system_config').insert({ key: 'nextSequence', value: {} });
+        if (insertConfigError) throw new Error(`Error al insertar configuración: ${insertConfigError.message}`);
+        console.log('Configuración insertada.');
       }
 
-      updatedTickets[index] = { ...ticket, ...updates };
-      return { ...prev, tickets: updatedTickets };
-    });
-  }, []);
-
-  const addUser = (u: Omit<User, 'id'>) => setState(p => ({ ...p, users: [...p.users, { ...u, id: crypto.randomUUID() }] }));
-  
-  const updateUser = (id: string, u: Partial<User>) => setState(p => {
-    const updatedUsers = p.users.map(x => {
-      if (x.id === id) {
-        const newUser = { ...x, ...u };
-        if (newUser.role !== UserRole.STAFF) newUser.assignedStationId = undefined;
-        return newUser;
-      }
-      return x;
-    });
-    return { ...p, users: updatedUsers };
-  });
-
-  const deleteUser = (id: string) => setState(p => ({ ...p, users: p.users.filter(x => x.id !== id) }));
-
-  const addService = (s: Omit<Service, 'id'>) => {
-    const id = crypto.randomUUID();
-    setState(p => ({ ...p, services: [...p.services, { ...s, id }], nextSequence: { ...p.nextSequence, [id]: 101 } }));
-  };
-
-  const updateService = useCallback((id: string, s: Partial<Service>) => setState(p => ({ ...p, services: p.services.map(x => x.id === id ? { ...x, ...s } : x) })), []);
-
-  const deleteService = (id: string) => setState(p => ({
-    ...p,
-    services: p.services.filter(x => x.id !== id),
-    tickets: p.tickets.filter(t => t.serviceId !== id), // Limpiar tickets huérfanos
-    stations: p.stations.map(st => ({ ...st, serviceIds: st.serviceIds.filter(sid => sid !== id) }))
-  }));
-
-  const addStation = (s: Omit<Station, 'id'>) => setState(p => ({ ...p, stations: [...p.stations, { ...s, id: crypto.randomUUID() }] }));
-
-  const updateStation = (id: string, s: Partial<Station>) => setState(p => ({ ...p, stations: p.stations.map(x => x.id === id ? { ...x, ...s } : x) }));
-
-  const deleteStation = (id: string) => setState(p => ({ 
-    ...p, 
-    stations: p.stations.filter(x => x.id !== id),
-    users: p.users.map(u => u.assignedStationId === id ? { ...u, assignedStationId: undefined } : u)
-  }));
-  
-  const addPrinter = (pr: Omit<Printer, 'id'>) => setState(p => ({ ...p, printers: [...p.printers, { ...pr, id: crypto.randomUUID() }] }));
-  
-  const updatePrinter = (id: string, pr: Partial<Printer>) => setState(p => ({ ...p, printers: p.printers.map(x => x.id === id ? { ...x, ...pr } : x) }));
-  
-  const deletePrinter = (id: string) => setState(p => ({ ...p, printers: p.printers.filter(x => x.id !== id) }));
-
-  const resetSystem = () => {
-    if (confirm("¿Confirmar purga diaria? Esta acción reiniciará los turnos a 101 y vaciará la base de datos de tickets del día.")) {
-      setState(p => ({ 
-        ...p, 
-        tickets: [], 
-        nextSequence: p.services.reduce((acc, s) => ({ ...acc, [s.id]: 101 }), {}) 
-      }));
+      await fetchData();
+      alert('Base de datos inicializada con éxito. Ya puedes entrar con superadmin / 123');
+    } catch (error: any) {
+      console.error('Error seeding database:', error);
+      alert(`Error al inicializar: ${error.message || 'Error desconocido'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return { 
-    state, login, logout, addTicket, updateTicketStatus, resetSystem, 
+    state, loading, login, logout, addTicket, updateTicketStatus, resetSystem, seedDatabase,
     addUser, updateUser, deleteUser, addService, updateService, deleteService, 
     addStation, updateStation, deleteStation, isServiceActive,
     addPrinter, updatePrinter, deletePrinter

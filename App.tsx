@@ -72,6 +72,7 @@ const Nav: React.FC<{ role: UserRole, logout: () => void, currentUser: User }> =
 const AdminPanel: React.FC<{ 
   state: QmsState,
   reset: () => void, 
+  seed: () => void,
   userRole: UserRole, 
   users: User[],
   onAddUser: (u: Omit<User, 'id'>) => void,
@@ -90,7 +91,7 @@ const AdminPanel: React.FC<{
   onUpdatePrinter: (id: string, p: Partial<Printer>) => void,
   onDeletePrinter: (id: string) => void,
   onToggleService: (id: string, active: boolean) => void
-}> = ({ state, reset, userRole, users, onAddUser, onUpdateUser, onDeleteUser, services, onAddService, onUpdateService, onDeleteService, stations, onAddStation, onUpdateStation, onDeleteStation, printers, onAddPrinter, onUpdatePrinter, onDeletePrinter, onToggleService }) => {
+}> = ({ state, reset, seed, userRole, users, onAddUser, onUpdateUser, onDeleteUser, services, onAddService, onUpdateService, onDeleteService, stations, onAddStation, onUpdateStation, onDeleteStation, printers, onAddPrinter, onUpdatePrinter, onDeletePrinter, onToggleService }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'services' | 'stations' | 'analytics' | 'printers'>('users');
 
   return (
@@ -195,12 +196,20 @@ const AdminPanel: React.FC<{
              <div className="relative z-10">
                <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-4">Maintenance</h3>
                {userRole === UserRole.SUPERADMIN && (
-                 <button 
-                   onClick={reset}
-                   className="w-full py-4 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 font-black hover:bg-rose-500 hover:text-white transition-all duration-300 uppercase tracking-widest text-[9px]"
-                 >
-                   Purgar Sistema
-                 </button>
+                 <div className="space-y-3">
+                   <button 
+                     onClick={reset}
+                     className="w-full py-4 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 font-black hover:bg-rose-500 hover:text-white transition-all duration-300 uppercase tracking-widest text-[9px]"
+                   >
+                     Purgar Sistema
+                   </button>
+                   <button 
+                     onClick={seed}
+                     className="w-full py-4 bg-indigo-500/10 text-indigo-400 rounded-2xl border border-indigo-500/20 font-black hover:bg-indigo-500 hover:text-white transition-all duration-300 uppercase tracking-widest text-[9px]"
+                   >
+                     Inicializar DB
+                   </button>
+                 </div>
                )}
                 <p className="text-[9px] text-slate-500 mt-4 text-center font-bold leading-relaxed opacity-60">Limpia tickets y transacciones diarias únicamente.</p>
              </div>
@@ -284,7 +293,7 @@ const App: React.FC = () => {
     addService, updateService, deleteService,
     addStation, updateStation, deleteStation,
     addPrinter, updatePrinter, deletePrinter,
-    isServiceActive
+    isServiceActive, seedDatabase
   } = useQmsStore();
 
   const [tick, setTick] = useState(0);
@@ -295,7 +304,7 @@ const App: React.FC = () => {
   }, []);
 
   if (!state.currentUser) {
-    return <LoginView onLogin={login} />;
+    return <LoginView onLogin={login} onSeed={seedDatabase} />;
   }
 
   const role = state.currentUser.role;
@@ -346,6 +355,7 @@ const App: React.FC = () => {
                    <AdminPanel 
                     state={state}
                     reset={resetSystem} 
+                    seed={seedDatabase}
                     userRole={role} 
                     users={state.users}
                     onAddUser={addUser}
