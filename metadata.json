@@ -1,5 +1,5 @@
 {
   "name": "GESFIL - Sistema de Gestión de Fila",
   "description": "An advanced, high-performance system for managing service queues, featuring patient totem, operator modules, public display, and a corporate business intelligence dashboard.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["usb"]
 }

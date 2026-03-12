@@ -11,7 +11,8 @@ export enum UserRole {
   SUPERADMIN = 'SUPERADMIN',
   ADMIN = 'ADMIN',
   STAFF = 'STAFF',
-  TOTEM = 'TOTEM'
+  TOTEM = 'TOTEM',
+  DISPLAY = 'DISPLAY'
 }
 
 export interface User {
@@ -59,6 +60,21 @@ export interface Ticket {
   };
 }
 
+export enum PrinterType {
+  USB = 'USB',
+  NETWORK = 'NETWORK',
+  BROWSER = 'BROWSER'
+}
+
+export interface Printer {
+  id: string;
+  name: string;
+  type: PrinterType;
+  address?: string; // IP or USB ID
+  port?: number;
+  active: boolean;
+}
+
 export interface QmsState {
   services: Service[];
   stations: Station[];
@@ -66,4 +82,5 @@ export interface QmsState {
   nextSequence: Record<string, number>;
   users: User[];
   currentUser: User | null;
+  printers: Printer[];
 }

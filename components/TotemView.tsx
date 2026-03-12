@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Service } from '../types';
+import { Service, Printer, PrinterType } from '../types';
+import { PrinterService } from '../services/PrinterService';
 
 interface TotemViewProps {
   services: Service[];
   nextSequence: Record<string, number>;
   onIssueTicket: (serviceId: string, priority: boolean) => void;
+  printers: Printer[];
 }
 
 interface IssuedTicketInfo {
@@ -15,7 +17,7 @@ interface IssuedTicketInfo {
   isPriority: boolean;
 }
 
-const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTicket }) => {
+const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTicket, printers }) => {
   const [issuedTicket, setIssuedTicket] = useState<IssuedTicketInfo | null>(null);
   const [isPriority, setIsPriority] = useState<boolean | null>(null);
 
@@ -23,8 +25,8 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     if (isPriority === null) return;
 
     // Calculamos el código real basado en la secuencia actual antes de emitir
-    const sequence = nextSequence[service.id] || 101;
-    const realCode = `${service.prefix}-${sequence}`;
+    const sequence = nextSequence[service.id] || 1;
+    const realCode = `${service.prefix}${sequence.toString().padStart(3, '0')}`;
 
     // Emitimos el ticket al store
     onIssueTicket(service.id, isPriority);
@@ -39,66 +41,170 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     });
   };
 
-  // Temporizador para volver al menú principal (3 segundos)
+  // Temporizador para volver al menú principal (3 segundos) y disparar impresión
   useEffect(() => {
     if (issuedTicket) {
-      const timer = setTimeout(() => {
+      // Intentar impresión física si hay impresoras configuradas
+      const activePrinters = printers.filter(p => p.active);
+      
+      if (activePrinters.length > 0) {
+        const now = new Date();
+        const ticketData = {
+          code: issuedTicket.code,
+          prefix: issuedTicket.prefix,
+          number: issuedTicket.code.replace(issuedTicket.prefix, ''),
+          serviceName: issuedTicket.serviceName,
+          isPriority: issuedTicket.isPriority,
+          date: now.toLocaleDateString(),
+          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        // Imprimir en todas las impresoras activas
+        activePrinters.forEach(printer => {
+          PrinterService.printTicket(printer, ticketData).catch(err => {
+            console.error(`Error imprimiendo en ${printer.name}:`, err);
+          });
+        });
+      } else {
+        // Si no hay impresoras configuradas, usamos el modo navegador como fallback limpio
+        const now = new Date();
+        const ticketData = {
+          code: issuedTicket.code,
+          prefix: issuedTicket.prefix,
+          number: issuedTicket.code.replace(issuedTicket.prefix, ''),
+          serviceName: issuedTicket.serviceName,
+          isPriority: issuedTicket.isPriority,
+          date: now.toLocaleDateString(),
+          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        const virtualPrinter: Printer = {
+          id: 'virtual-browser',
+          name: 'Navegador',
+          type: PrinterType.BROWSER,
+          address: '',
+          active: true
+        };
+
+        PrinterService.printTicket(virtualPrinter, ticketData).catch(err => {
+          console.error("Error en impresión virtual:", err);
+        });
+      }
+
+      const closeTimer = setTimeout(() => {
         setIssuedTicket(null);
         setIsPriority(null);
-      }, 3000);
-      return () => clearTimeout(timer);
+      }, 4000);
     }
   }, [issuedTicket]);
 
   if (issuedTicket) {
     return (
-      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-6 md:p-12 bg-slate-50 animate-fade-in">
-        <div className="w-full max-w-lg md:max-w-xl bg-white rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border border-slate-100 overflow-hidden relative">
-          <div className="h-6 w-full" style={{ backgroundColor: issuedTicket.color }}></div>
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-6 md:p-12 bg-slate-50 animate-fade-in print:bg-white print:p-0 print:min-h-0">
+        {/* Ticket Virtual (Pantalla) */}
+        <div className="w-full max-w-[420px] bg-white rounded-[3.5rem] shadow-[0_60px_100px_-20px_rgba(0,0,0,0.12)] border border-slate-100 overflow-hidden relative print:hidden">
+          <div className="h-4 w-full" style={{ backgroundColor: issuedTicket.color }}></div>
           
-          <div className="p-12 md:p-16 text-center space-y-10">
-            <div className="w-24 h-24 md:w-32 md:h-32 bg-emerald-50 rounded-[2.5rem] md:rounded-[3.5rem] flex items-center justify-center mx-auto mb-8">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce md:w-16 md:h-16">
+          <div className="p-10 md:p-14 text-center space-y-8">
+            <div className="w-20 h-20 bg-emerald-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </div>
 
-            <div>
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <p className="text-[12px] md:text-[14px] font-black text-slate-400 uppercase tracking-[0.4em]">Su Turno es</p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-3">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Turno Generado</p>
                 {issuedTicket.isPriority && (
-                  <span className="bg-amber-100 text-amber-600 text-[10px] md:text-[12px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Preferente</span>
+                  <span className="bg-amber-100 text-amber-600 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest">Preferente</span>
                 )}
               </div>
-              <h1 className="text-8xl md:text-[10rem] font-black text-slate-900 tracking-tighter leading-none">
-                {issuedTicket.code}
-              </h1>
-              <p className="text-base md:text-xl text-slate-500 font-bold mt-6 uppercase tracking-widest">
-                Área de {issuedTicket.serviceName}
-              </p>
+              
+              <div className="flex items-center justify-center gap-5 py-2">
+                <span className="text-4xl md:text-5xl font-black uppercase tracking-tighter" style={{ color: issuedTicket.color }}>
+                  {issuedTicket.prefix}
+                </span>
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                <span className="text-7xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none">
+                  {issuedTicket.code.replace(issuedTicket.prefix, '')}
+                </span>
+              </div>
+
+              <div className="pt-2">
+                <p className="text-[11px] text-slate-500 font-black uppercase tracking-[0.3em] mb-1">Área de Atención</p>
+                <p className="text-lg font-bold text-slate-900 tracking-tight">
+                  {issuedTicket.serviceName}
+                </p>
+              </div>
             </div>
 
-            <div className="py-10 border-y border-dashed border-slate-200">
-              <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed italic">
+            <div className="py-8 border-y border-dashed border-slate-200">
+              <p className="text-[13px] text-slate-400 font-medium leading-relaxed italic px-4">
                 Tome su ticket impreso y espere a ser llamado en los monitores de la sala.
               </p>
             </div>
 
-            <div className="flex flex-col items-center gap-4 pt-6">
-              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="flex flex-col items-center gap-4 pt-2">
+              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div className="h-full bg-indigo-600 animate-[progress_3s_linear]"></div>
               </div>
-              <p className="text-[11px] md:text-[13px] font-black text-indigo-600 uppercase tracking-widest">Reiniciando sistema...</p>
+              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Reiniciando sistema...</p>
             </div>
           </div>
-
-          <style>{`
-            @keyframes progress {
-              from { width: 0%; }
-              to { width: 100%; }
-            }
-          `}</style>
         </div>
+
+        {/* Ticket Físico (Solo Impresión - Optimizado para 80mm) */}
+        <div className="hidden print:block w-[80mm] mx-auto p-4 text-black font-sans bg-white">
+          <div className="text-center border-b-2 border-black pb-4 mb-4">
+            <h2 className="text-xl font-black tracking-tighter">GESFIL</h2>
+            <p className="text-[10px] font-bold uppercase tracking-widest">Sistema de Gestión de Fila</p>
+          </div>
+
+          <div className="text-center py-6">
+            <p className="text-[12px] font-bold uppercase tracking-[0.2em] mb-2">SU TURNO ES</p>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-3xl font-black">{issuedTicket.prefix}</span>
+              <span className="text-6xl font-black">{issuedTicket.code.replace(issuedTicket.prefix, '')}</span>
+            </div>
+            {issuedTicket.isPriority && (
+              <p className="text-[14px] font-black border-2 border-black inline-block px-4 py-1 rounded-md uppercase">PREFERENTE</p>
+            )}
+          </div>
+
+          <div className="text-center border-y border-black py-4 my-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-1">ÁREA DE ATENCIÓN</p>
+            <p className="text-lg font-black uppercase">{issuedTicket.serviceName}</p>
+          </div>
+
+          <div className="text-center space-y-2">
+            <p className="text-[12px] font-bold">{new Date().toLocaleDateString()} - {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <p className="text-[10px] leading-tight italic">Por favor, espere su turno en la sala de espera.</p>
+          </div>
+
+          <div className="mt-8 pt-4 border-t border-dashed border-black text-center">
+            <p className="text-[9px] font-bold uppercase tracking-widest">Gracias por su visita</p>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes progress {
+            from { width: 0%; }
+            to { width: 100%; }
+          }
+          @media print {
+            @page {
+              margin: 0;
+              size: 80mm auto;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+            }
+            nav, .dock-nav, button {
+              display: none !important;
+            }
+          }
+        `}</style>
       </div>
     );
   }

@@ -1,9 +1,9 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { useQmsStore } from './store/useQmsStore';
 import { ICONS } from './constants';
-import { UserRole, User, Service, Station, QmsState, Ticket, TicketStatus } from './types';
+import { UserRole, User, Service, Station, QmsState, Ticket, TicketStatus, Printer } from './types';
 import TotemView from './components/TotemView';
 import StaffView from './components/StaffView';
 import DashboardView from './components/DashboardView';
@@ -13,6 +13,7 @@ import LoginView from './components/LoginView';
 import UserManagementView from './components/UserManagementView';
 import ServiceManagementView from './components/ServiceManagementView';
 import StationManagementView from './components/StationManagementView';
+import PrinterManagementView from './components/PrinterManagementView';
 
 const Nav: React.FC<{ role: UserRole, logout: () => void, currentUser: User }> = ({ role, logout, currentUser }) => {
   const location = useLocation();
@@ -44,7 +45,7 @@ const Nav: React.FC<{ role: UserRole, logout: () => void, currentUser: User }> =
             <span className={`text-[9px] font-black uppercase tracking-widest transition-opacity ${isActive('/staff') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>Staff</span>
           </Link>
         )}
-        {canSee([UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.STAFF, UserRole.TOTEM]) && (
+        {canSee([UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.STAFF, UserRole.TOTEM, UserRole.DISPLAY]) && (
           <Link title="Monitor" to="/display" className={`flex flex-col items-center gap-1.5 transition-all group ${isActive('/display') ? 'text-indigo-400 scale-110' : 'text-slate-500 hover:text-white'}`}>
             <ICONS.Screen />
             <span className={`text-[9px] font-black uppercase tracking-widest transition-opacity ${isActive('/display') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>Live</span>
@@ -83,11 +84,14 @@ const AdminPanel: React.FC<{
   stations: Station[],
   onAddStation: (st: Omit<Station, 'id'>) => void,
   onUpdateStation: (id: string, st: Partial<Station>) => void,
-  onDeleteStation: (id: string) => void
-}> = ({ state, reset, userRole, users, onAddUser, onUpdateUser, onDeleteUser, services, onAddService, onUpdateService, onDeleteService, stations, onAddStation, onUpdateStation, onDeleteStation }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'services' | 'stations' | 'analytics'>('users');
-
-  if (userRole !== UserRole.SUPERADMIN) return null;
+  onDeleteStation: (id: string) => void,
+  printers: Printer[],
+  onAddPrinter: (p: Omit<Printer, 'id'>) => void,
+  onUpdatePrinter: (id: string, p: Partial<Printer>) => void,
+  onDeletePrinter: (id: string) => void,
+  onToggleService: (id: string, active: boolean) => void
+}> = ({ state, reset, userRole, users, onAddUser, onUpdateUser, onDeleteUser, services, onAddService, onUpdateService, onDeleteService, stations, onAddStation, onUpdateStation, onDeleteStation, printers, onAddPrinter, onUpdatePrinter, onDeletePrinter, onToggleService }) => {
+  const [activeTab, setActiveTab] = useState<'users' | 'services' | 'stations' | 'analytics' | 'printers'>('users');
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-10 space-y-8 animate-fade-in pb-40">
@@ -159,6 +163,7 @@ const AdminPanel: React.FC<{
                 { id: 'users', label: 'Operadores', icon: <ICONS.Users />, count: users.length },
                 { id: 'services', label: 'Servicios', icon: <ICONS.Activity />, count: services.length },
                 { id: 'stations', label: 'Módulos', icon: <ICONS.Terminal />, count: stations.length },
+                { id: 'printers', label: 'Impresoras', icon: <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>, count: printers.length },
                 { id: 'analytics', label: 'BI Hub', icon: <ICONS.Activity />, count: state.tickets.length },
               ].map(tab => (
                 <button
@@ -189,12 +194,14 @@ const AdminPanel: React.FC<{
           <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group border border-white/5">
              <div className="relative z-10">
                <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-4">Maintenance</h3>
-               <button 
-                  onClick={reset}
-                  className="w-full py-4 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 font-black hover:bg-rose-500 hover:text-white transition-all duration-300 uppercase tracking-widest text-[9px]"
-                >
-                  Purgar Sistema
-                </button>
+               {userRole === UserRole.SUPERADMIN && (
+                 <button 
+                   onClick={reset}
+                   className="w-full py-4 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 font-black hover:bg-rose-500 hover:text-white transition-all duration-300 uppercase tracking-widest text-[9px]"
+                 >
+                   Purgar Sistema
+                 </button>
+               )}
                 <p className="text-[9px] text-slate-500 mt-4 text-center font-bold leading-relaxed opacity-60">Limpia tickets y transacciones diarias únicamente.</p>
              </div>
              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform">
@@ -211,13 +218,14 @@ const AdminPanel: React.FC<{
             {activeTab === 'users' && <UserManagementView users={users} onAdd={onAddUser} onUpdate={onUpdateUser} onDelete={onDeleteUser} stations={stations} />}
             {activeTab === 'services' && <ServiceManagementView services={services} onAdd={onAddService} onUpdate={onUpdateService} onDelete={onDeleteService} />}
             {activeTab === 'stations' && <StationManagementView stations={stations} services={services} onAdd={onAddStation} onUpdate={onUpdateStation} onDelete={onDeleteStation} />}
+            {activeTab === 'printers' && <PrinterManagementView printers={printers} onAdd={onAddPrinter} onUpdate={onUpdatePrinter} onDelete={onDeletePrinter} />}
             {activeTab === 'analytics' && (
               <div className="p-4 lg:p-8">
                  <DashboardView 
                     tickets={state.tickets} 
                     services={state.services} 
                     stations={state.stations} 
-                    onToggleService={(id, active) => onUpdateService(id, { active })}
+                    onToggleService={onToggleService}
                  />
               </div>
             )}
@@ -275,11 +283,12 @@ const App: React.FC = () => {
     addUser, updateUser, deleteUser,
     addService, updateService, deleteService,
     addStation, updateStation, deleteStation,
+    addPrinter, updatePrinter, deletePrinter,
     isServiceActive
   } = useQmsStore();
 
-  // Force re-render every minute to update time-based service availability
   const [tick, setTick] = useState(0);
+  const onToggleService = useCallback((id: string, active: boolean) => updateService(id, { active }), [updateService]);
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 60000);
     return () => clearInterval(interval);
@@ -298,7 +307,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={
             [UserRole.TOTEM, UserRole.ADMIN, UserRole.SUPERADMIN].includes(role) 
-              ? <TotemView services={state.services.filter(s => isServiceActive(s))} nextSequence={state.nextSequence} onIssueTicket={addTicket} /> 
+              ? <TotemView services={state.services.filter(s => isServiceActive(s))} nextSequence={state.nextSequence} onIssueTicket={addTicket} printers={state.printers} /> 
               : <Navigate to="/staff" />
           } />
           
@@ -316,7 +325,11 @@ const App: React.FC = () => {
             ) : <Navigate to="/" />
           } />
           
-          <Route path="/display" element={<PublicDisplayView tickets={state.tickets} stations={state.stations} services={state.services} />} />
+          <Route path="/display" element={
+            [UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.STAFF, UserRole.TOTEM, UserRole.DISPLAY].includes(role) 
+              ? <PublicDisplayView tickets={state.tickets} stations={state.stations} services={state.services} />
+              : <Navigate to="/" />
+          } />
           
           <Route path="/admin" element={
             [UserRole.ADMIN, UserRole.SUPERADMIN].includes(role) ? (
@@ -326,7 +339,7 @@ const App: React.FC = () => {
                     tickets={state.tickets} 
                     services={state.services} 
                     stations={state.stations} 
-                    onToggleService={(id, active) => updateService(id, { active })}
+                    onToggleService={onToggleService}
                   />
                 )}
                 {role === UserRole.SUPERADMIN && (
@@ -346,6 +359,11 @@ const App: React.FC = () => {
                     onAddStation={addStation}
                     onUpdateStation={updateStation}
                     onDeleteStation={deleteStation}
+                    printers={state.printers}
+                    onAddPrinter={addPrinter}
+                    onUpdatePrinter={updatePrinter}
+                    onDeletePrinter={deletePrinter}
+                    onToggleService={onToggleService}
                   />
                 )}
               </div>

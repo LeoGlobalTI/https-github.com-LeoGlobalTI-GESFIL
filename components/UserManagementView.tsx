@@ -178,6 +178,7 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAdd, o
                   <option value={UserRole.ADMIN}>ADMIN (Gestión)</option>
                   <option value={UserRole.SUPERADMIN}>SUPERADMIN (Master)</option>
                   <option value={UserRole.TOTEM}>TOTEM (Emisor)</option>
+                  <option value={UserRole.DISPLAY}>DISPLAY (Monitor)</option>
                 </select>
               </div>
 

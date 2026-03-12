@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Ticket, TicketStatus, Service, Station, QmsState, User, UserRole } from '../types';
+import { Ticket, TicketStatus, Service, Station, QmsState, User, UserRole, Printer, PrinterType } from '../types';
 import { INITIAL_SERVICES, INITIAL_STATIONS } from '../constants';
 
 const DEFAULT_USERS: User[] = [
@@ -8,6 +8,7 @@ const DEFAULT_USERS: User[] = [
   { id: 'u2', username: 'admin', password: '123', name: 'Gestor Operativo', role: UserRole.ADMIN },
   { id: 'u3', username: 'staff1', password: '123', name: 'Operario 01', role: UserRole.STAFF, assignedStationId: 's1' },
   { id: 'u4', username: 'totem', password: '123', name: 'Tótem Entrada', role: UserRole.TOTEM },
+  { id: 'u5', username: 'live', password: '123', name: 'Display Live', role: UserRole.DISPLAY },
 ];
 
 const STORAGE_KEY = 'gesfil_qms_v2_core';
@@ -35,7 +36,8 @@ export const useQmsStore = () => {
           })),
           tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
           currentUser: parsed.currentUser || null,
-          nextSequence: parsed.nextSequence || {}
+          nextSequence: parsed.nextSequence || {},
+          printers: Array.isArray(parsed.printers) ? parsed.printers : []
         };
       }
     } catch (e) {
@@ -48,6 +50,7 @@ export const useQmsStore = () => {
       nextSequence: INITIAL_SERVICES.reduce((acc, s) => ({ ...acc, [s.id]: 101 }), {}),
       users: DEFAULT_USERS,
       currentUser: null,
+      printers: []
     };
   };
 
@@ -184,7 +187,7 @@ export const useQmsStore = () => {
     setState(p => ({ ...p, services: [...p.services, { ...s, id }], nextSequence: { ...p.nextSequence, [id]: 101 } }));
   };
 
-  const updateService = (id: string, s: Partial<Service>) => setState(p => ({ ...p, services: p.services.map(x => x.id === id ? { ...x, ...s } : x) }));
+  const updateService = useCallback((id: string, s: Partial<Service>) => setState(p => ({ ...p, services: p.services.map(x => x.id === id ? { ...x, ...s } : x) })), []);
 
   const deleteService = (id: string) => setState(p => ({
     ...p,
@@ -202,6 +205,12 @@ export const useQmsStore = () => {
     stations: p.stations.filter(x => x.id !== id),
     users: p.users.map(u => u.assignedStationId === id ? { ...u, assignedStationId: undefined } : u)
   }));
+  
+  const addPrinter = (pr: Omit<Printer, 'id'>) => setState(p => ({ ...p, printers: [...p.printers, { ...pr, id: crypto.randomUUID() }] }));
+  
+  const updatePrinter = (id: string, pr: Partial<Printer>) => setState(p => ({ ...p, printers: p.printers.map(x => x.id === id ? { ...x, ...pr } : x) }));
+  
+  const deletePrinter = (id: string) => setState(p => ({ ...p, printers: p.printers.filter(x => x.id !== id) }));
 
   const resetSystem = () => {
     if (confirm("¿Confirmar purga diaria? Esta acción reiniciará los turnos a 101 y vaciará la base de datos de tickets del día.")) {
@@ -216,6 +225,7 @@ export const useQmsStore = () => {
   return { 
     state, login, logout, addTicket, updateTicketStatus, resetSystem, 
     addUser, updateUser, deleteUser, addService, updateService, deleteService, 
-    addStation, updateStation, deleteStation, isServiceActive
+    addStation, updateStation, deleteStation, isServiceActive,
+    addPrinter, updatePrinter, deletePrinter
   };
 };
