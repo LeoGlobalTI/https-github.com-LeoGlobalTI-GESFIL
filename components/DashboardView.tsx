@@ -3,7 +3,6 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Ticket, Service, Station, TicketStatus } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import TicketTraceabilityModal from './TicketTraceabilityModal';
-import { analyzeOperationalHealth } from '../services/gemini';
 
 interface DashboardViewProps {
   tickets: Ticket[];
@@ -14,22 +13,6 @@ interface DashboardViewProps {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, stations, onToggleService }) => {
   const [inspectingTicket, setInspectingTicket] = useState<Ticket | null>(null);
-  const [aiInsight, setAiInsight] = useState<string>("Sincronizando con motor de inteligencia...");
-
-  const servicesLength = services.length;
-  const ticketsLength = tickets.length;
-
-  const lastAnalysisRef = React.useRef<string>("");
-
-  useEffect(() => {
-    const currentData = JSON.stringify({ t: ticketsLength, s: servicesLength });
-    if (ticketsLength > 3 && lastAnalysisRef.current !== currentData) {
-      lastAnalysisRef.current = currentData;
-      analyzeOperationalHealth(tickets, services).then(res => {
-        setAiInsight(res);
-      });
-    }
-  }, [ticketsLength, servicesLength, tickets, services]);
 
   const stats = useMemo(() => {
     const total = tickets.length;
@@ -63,12 +46,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">GESFIL Business Hub</h1>
           <p className="text-slate-500 font-medium">Infraestructura de Gestión en Tiempo Real</p>
-        </div>
-        
-        <div className="bg-indigo-900 text-indigo-100 p-6 rounded-[2.5rem] shadow-2xl border border-indigo-700 max-w-md relative overflow-hidden group">
-           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform">✨</div>
-           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-2">IA Insights (Gemini)</p>
-           <p className="text-xs font-bold leading-relaxed">{aiInsight}</p>
         </div>
       </header>
 

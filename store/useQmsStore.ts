@@ -158,6 +158,16 @@ export const useQmsStore = () => {
     const ticket = state.tickets.find(t => t.id === ticketId);
 
     if (newStatus === TicketStatus.CALLING) {
+      // Check if station already has an active ticket
+      const hasActive = state.tickets.some(t => 
+        t.stationId === stationId && 
+        (t.status === TicketStatus.CALLING || t.status === TicketStatus.ATTENDING)
+      );
+      if (hasActive) {
+        alert('Ya tienes un ticket activo. Debes finalizarlo antes de llamar a otro.');
+        return;
+      }
+
       updates.called_at = new Date().toISOString();
       updates.station_id = stationId;
       updates.recalled_count = (ticket?.metadata?.recalledCount || 0) + 1;
@@ -169,9 +179,19 @@ export const useQmsStore = () => {
 
     let query = supabase.from('tickets').update(updates).eq('id', ticketId);
 
-    // Atomic check: Only allow calling if ticket is WAITING or already being called by THIS station
+    // Atomic checks for all transitions
     if (newStatus === TicketStatus.CALLING) {
+      // Only allow calling if WAITING or already being called by THIS station (for recall)
       query = query.or(`status.eq.${TicketStatus.WAITING},and(status.eq.${TicketStatus.CALLING},station_id.eq.${stationId})`);
+    } else if (newStatus === TicketStatus.ATTENDING) {
+      // Only allow attending if currently CALLING and assigned to THIS station
+      query = query.eq('status', TicketStatus.CALLING).eq('station_id', stationId);
+    } else if (newStatus === TicketStatus.COMPLETED) {
+      // Only allow completion if currently ATTENDING and assigned to THIS station
+      query = query.eq('status', TicketStatus.ATTENDING).eq('station_id', stationId);
+    } else if (newStatus === TicketStatus.CANCELLED) {
+      // Allow cancellation from WAITING, CALLING or ATTENDING if assigned to THIS station (or no station if WAITING)
+      query = query.or(`status.eq.${TicketStatus.WAITING},and(status.in.(${TicketStatus.CALLING},${TicketStatus.ATTENDING}),station_id.eq.${stationId})`);
     }
 
     const { error, data } = await query.select();
@@ -181,12 +201,10 @@ export const useQmsStore = () => {
       return;
     }
 
-    // If no rows were updated, it means the condition wasn't met (e.g., someone else took the ticket)
+    // If no rows were updated, it means the condition wasn't met (concurrency issue)
     if (!data || data.length === 0) {
-      console.warn('Ticket update skipped: Ticket might have been taken by another operator.');
-      if (newStatus === TicketStatus.CALLING) {
-        alert('Este ticket ya ha sido tomado por otro operador.');
-      }
+      console.warn('Ticket update skipped: Concurrency check failed.');
+      alert('La acción no pudo completarse. Es posible que el ticket haya sido modificado por otro usuario o ya no esté disponible.');
     }
   }, [state.tickets]);
 

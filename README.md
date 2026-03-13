@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# GESFIL - Sistema de Gestión de Fila
 
-# Run and deploy your AI Studio app
+Este proyecto está listo para ser desplegado en **Vercel**.
 
-This contains everything you need to run your app locally.
+## Pasos para el Despliegue
 
-View your app in AI Studio: https://ai.studio/apps/e8de04fa-be96-4780-961e-1995f0d3ca56
+1. **Conectar con GitHub**: Sube este código a un repositorio de GitHub.
+2. **Importar en Vercel**: Ve a [vercel.com](https://vercel.com) e importa el repositorio.
+3. **Configurar Variables de Entorno**:
+   Durante el proceso de importación, añade las siguientes variables en la sección "Environment Variables":
+   - `VITE_SUPABASE_URL`: Tu URL de proyecto de Supabase.
+   - `VITE_SUPABASE_ANON_KEY`: Tu llave anónima de Supabase.
+4. **Build & Install**: Vercel detectará automáticamente que es un proyecto Vite y usará los comandos correctos (`npm run build`).
 
-## Run Locally
+## Configuración de Supabase
 
-**Prerequisites:**  Node.js
+Asegúrate de haber ejecutado el script `supabase_schema.sql` en el SQL Editor de tu proyecto de Supabase para crear las tablas y funciones necesarias.
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+Powered by Global TI © 2026
