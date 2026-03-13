@@ -260,10 +260,10 @@ const StaffController: React.FC<{
   const [activeStationId, setActiveStationId] = useState<string | null>(() => defaultStationId);
 
   useEffect(() => {
-    if (defaultStationId && !activeStationId) {
-      setActiveStationId(defaultStationId);
+    if (user.assignedStationId && activeStationId !== user.assignedStationId && !isAdmin) {
+      setActiveStationId(user.assignedStationId);
     }
-  }, [defaultStationId]);
+  }, [user.assignedStationId, isAdmin]);
 
   const activeStation = useMemo(() => 
     stations.find(s => s.id === activeStationId),
@@ -318,7 +318,9 @@ const App: React.FC = () => {
           <Route path="/" element={
             [UserRole.TOTEM, UserRole.ADMIN, UserRole.SUPERADMIN].includes(role) 
               ? <TotemView services={state.services.filter(s => isServiceActive(s))} nextSequence={state.nextSequence} onIssueTicket={addTicket} printers={state.printers} /> 
-              : <Navigate to="/staff" />
+              : role === UserRole.DISPLAY
+                ? <Navigate to="/display" />
+                : <Navigate to="/staff" />
           } />
           
           <Route path="/staff" element={
@@ -332,7 +334,9 @@ const App: React.FC = () => {
                   updateTicketStatus={updateTicketStatus}
                 />
               </div>
-            ) : <Navigate to="/" />
+            ) : role === UserRole.DISPLAY
+              ? <Navigate to="/display" />
+              : <Navigate to="/" />
           } />
           
           <Route path="/display" element={
