@@ -83,28 +83,34 @@ CREATE OR REPLACE FUNCTION increment_sequence(s_id TEXT)
 RETURNS INTEGER AS $$
 DECLARE
   current_val INTEGER;
+  current_config JSONB;
   today TEXT;
 BEGIN
   today := TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD');
 
-  -- Ensure the row exists and handle daily reset or increment
+  -- Ensure the row exists and is initialized
   INSERT INTO system_config (key, value)
-  VALUES ('nextSequence', jsonb_build_object('lastResetDate', today, 'sequences', jsonb_build_object(s_id, 1)))
+  VALUES ('nextSequence', jsonb_build_object('lastResetDate', today, 'sequences', '{}'::JSONB))
   ON CONFLICT (key) DO UPDATE 
-  SET value = CASE 
-    WHEN (system_config.value->>'lastResetDate') != today THEN 
-      jsonb_build_object('lastResetDate', today, 'sequences', jsonb_build_object(s_id, 1))
-    ELSE 
-      jsonb_set(
-        system_config.value,
-        ARRAY['sequences', s_id],
-        to_jsonb(COALESCE((system_config.value->'sequences'->>s_id)::INTEGER, 0) + 1)
-      )
-  END
-  WHERE system_config.key = 'nextSequence'
-  RETURNING (value->'sequences'->>s_id)::INTEGER INTO current_val;
+  SET value = jsonb_build_object('lastResetDate', today, 'sequences', '{}'::JSONB)
+  WHERE (system_config.value->>'lastResetDate') != today;
 
-  RETURN current_val;
+  -- Get current config with lock
+  SELECT value INTO current_config FROM system_config WHERE key = 'nextSequence' FOR UPDATE;
+  
+  -- Get current value for the service
+  current_val := COALESCE((current_config->'sequences'->>s_id)::INTEGER, 0);
+  
+  -- Update with next value
+  UPDATE system_config
+  SET value = jsonb_set(
+    current_config,
+    ARRAY['sequences', s_id],
+    to_jsonb(current_val + 1)
+  )
+  WHERE key = 'nextSequence';
+
+  RETURN current_val + 1;
 END;
 $$ LANGUAGE plpgsql;
 

@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Ticket, Station, Service, TicketStatus, UserRole } from '../types';
-import { formatTime } from '../utils/formatters';
 
 interface StaffViewProps {
   station: Station | null;
@@ -64,6 +63,11 @@ const StaffView: React.FC<StaffViewProps> = ({
     return () => clearInterval(interval);
   }, [activeTicket?.status, activeTicket?.startedAt]);
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const getWaitTime = (createdAt: number) => {
     const diff = Math.floor((Date.now() - createdAt) / 60000);
@@ -166,9 +170,7 @@ const StaffView: React.FC<StaffViewProps> = ({
               <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
                  <div className="text-right hidden md:block">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Servicios Asignados</p>
-                    <p className="text-[10px] font-bold text-slate-600">
-                      {station.serviceIds.filter(id => services.some(s => s.id === id)).length} Categorías Habilitadas
-                    </p>
+                    <p className="text-[10px] font-bold text-slate-600">{station.serviceIds.length} Categorías Habilitadas</p>
                  </div>
                  <div className="flex -space-x-2">
                   {station.serviceIds.map(id => {

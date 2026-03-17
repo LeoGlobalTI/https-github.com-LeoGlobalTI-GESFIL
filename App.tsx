@@ -1,19 +1,19 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { useQmsStore } from '@/state/useQmsStore';
-import { ICONS } from '@/constants';
-import { UserRole, User, Service, Station, QmsState, Ticket, TicketStatus, Printer } from '@/types';
-import TotemView from '@/components/TotemView';
-import StaffView from '@/components/StaffView';
-import DashboardView from '@/components/DashboardView';
-import TechnicalInfoView from '@/components/TechnicalInfoView';
-import PublicDisplayView from '@/components/PublicDisplayView';
-import LoginViewComponent from '@/components/LoginViewComponent';
-import UserManagementView from '@/components/UserManagementView';
-import ServiceManagementView from '@/components/ServiceManagementView';
-import StationManagementView from '@/components/StationManagementView';
-import PrinterManagementView from '@/components/PrinterManagementView';
+import { useQmsStore } from './store/useQmsStore';
+import { ICONS } from './constants';
+import { UserRole, User, Service, Station, QmsState, Ticket, TicketStatus, Printer } from './types';
+import TotemView from './components/TotemView';
+import StaffView from './components/StaffView';
+import DashboardView from './components/DashboardView';
+import TechnicalInfoView from './components/TechnicalInfoView';
+import PublicDisplayView from './components/PublicDisplayView';
+import LoginView from './components/LoginView';
+import UserManagementView from './components/UserManagementView';
+import ServiceManagementView from './components/ServiceManagementView';
+import StationManagementView from './components/StationManagementView';
+import PrinterManagementView from './components/PrinterManagementView';
 
 const Nav: React.FC<{ role: UserRole, logout: () => void, currentUser: User }> = ({ role, logout, currentUser }) => {
   const location = useLocation();
@@ -250,7 +250,7 @@ const StaffController: React.FC<{
   tickets: Ticket[], 
   services: Service[], 
   stations: Station[],
-  isServiceActive: (service: Service) => boolean,
+  isServiceActive: (service: Service, stationId?: string) => boolean,
   updateTicketStatus: (t: string, s: TicketStatus, st: string) => void 
 }> = ({ user, tickets, services, stations, isServiceActive, updateTicketStatus }) => {
   const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN;
@@ -283,7 +283,7 @@ const StaffController: React.FC<{
   return (
     <StaffView 
       station={activeStation} 
-      allStations={isAdmin ? stations.filter(s => s.active) : stations.filter(s => s.id === user.assignedStationId && s.active)}
+      allStations={stations.filter(s => s.active)}
       tickets={tickets} 
       services={services} 
       userRole={user.role}
@@ -307,7 +307,7 @@ const App: React.FC = () => {
   const onToggleService = useCallback((id: string, active: boolean) => updateService(id, { active }), [updateService]);
 
   if (!state.currentUser) {
-    return <LoginViewComponent onLogin={login} onSeed={seedDatabase} isInitialized={state.users.length > 0} />;
+    return <LoginView onLogin={login} onSeed={seedDatabase} isInitialized={state.users.length > 0} />;
   }
 
   const role = state.currentUser.role;
