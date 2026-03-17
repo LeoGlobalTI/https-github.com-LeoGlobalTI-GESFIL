@@ -186,7 +186,7 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
               >
                 <option value={PrinterType.NETWORK}>Red (TCP/IP)</option>
                 <option value={PrinterType.USB}>Local (USB)</option>
-                <option value={PrinterType.BROWSER}>Navegador (Ventana)</option>
+                <option value={PrinterType.BROWSER}>Impresora del Sistema (Diálogo)</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -211,8 +211,11 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Puerto</label>
                 <input
                   type="number"
-                  value={newPrinter.port}
-                  onChange={e => setNewPrinter({ ...newPrinter, port: parseInt(e.target.value) })}
+                  value={isNaN(newPrinter.port as number) ? '' : (newPrinter.port ?? '')}
+                  onChange={e => {
+                    const val = e.target.value === '' ? undefined : parseInt(e.target.value);
+                    setNewPrinter({ ...newPrinter, port: val });
+                  }}
                   className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm"
                 />
               </div>

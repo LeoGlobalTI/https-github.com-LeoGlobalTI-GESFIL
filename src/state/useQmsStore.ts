@@ -32,21 +32,28 @@ const mapStationFromDb = (s: any): Station => ({
   active: s.active
 });
 
-const mapTicketFromDb = (t: any): Ticket => ({
-  id: t.id,
-  code: t.code,
-  serviceId: t.service_id,
-  status: t.status as TicketStatus,
-  createdAt: new Date(t.created_at).getTime(),
-  calledAt: t.called_at ? new Date(t.called_at).getTime() : undefined,
-  startedAt: t.started_at ? new Date(t.started_at).getTime() : undefined,
-  endedAt: t.ended_at ? new Date(t.ended_at).getTime() : undefined,
-  stationId: t.station_id,
-  metadata: {
-    recalledCount: t.recalled_count || 0,
-    priority: t.priority || false
-  }
-});
+const mapTicketFromDb = (t: any): Ticket => {
+  const createdAtDate = new Date(t.created_at).getTime();
+  const calledAtDate = t.called_at ? new Date(t.called_at).getTime() : undefined;
+  const startedAtDate = t.started_at ? new Date(t.started_at).getTime() : undefined;
+  const endedAtDate = t.ended_at ? new Date(t.ended_at).getTime() : undefined;
+
+  return {
+    id: t.id,
+    code: t.code,
+    serviceId: t.service_id,
+    status: t.status as TicketStatus,
+    createdAt: isNaN(createdAtDate) ? Date.now() : createdAtDate,
+    calledAt: (calledAtDate !== undefined && !isNaN(calledAtDate)) ? calledAtDate : undefined,
+    startedAt: (startedAtDate !== undefined && !isNaN(startedAtDate)) ? startedAtDate : undefined,
+    endedAt: (endedAtDate !== undefined && !isNaN(endedAtDate)) ? endedAtDate : undefined,
+    stationId: t.station_id,
+    metadata: {
+      recalledCount: t.recalled_count || 0,
+      priority: t.priority || false
+    }
+  };
+};
 
 const mapUserFromDb = (u: any): User => ({
   id: u.id,
@@ -57,14 +64,17 @@ const mapUserFromDb = (u: any): User => ({
   assignedStationId: u.assigned_station_id
 });
 
-const mapPrinterFromDb = (p: any): Printer => ({
-  id: p.id,
-  name: p.name,
-  type: p.type as PrinterType,
-  address: p.address,
-  port: p.port,
-  active: p.active
-});
+const mapPrinterFromDb = (p: any): Printer => {
+  const parsedPort = p.port ? parseInt(p.port) : undefined;
+  return {
+    id: p.id,
+    name: p.name,
+    type: p.type as PrinterType,
+    address: p.address,
+    port: (typeof p.port === 'number' && !isNaN(p.port)) ? p.port : (parsedPort && !isNaN(parsedPort) ? parsedPort : undefined),
+    active: p.active
+  };
+};
 
 export const useQmsStore = () => {
   const [state, setState] = useState<QmsState>({
@@ -295,6 +305,7 @@ export const useQmsStore = () => {
       }
       if (!config.sequences) config.sequences = {};
       currentSeq = (config.sequences[serviceId] || 0) + 1;
+      if (isNaN(currentSeq)) currentSeq = 1;
       config.sequences[serviceId] = currentSeq;
       
       // Update local state immediately
@@ -304,7 +315,8 @@ export const useQmsStore = () => {
       }));
     }
 
-    const code = `${service.prefix}${String(currentSeq || 1).padStart(4, '0')}`;
+    const finalSeq = isNaN(currentSeq) ? 1 : currentSeq;
+    const code = `${service.prefix}${String(finalSeq).padStart(4, '0')}`;
 
     const { data, error } = await supabase.from('tickets').insert({
       code,
