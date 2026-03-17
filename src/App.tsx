@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { useQmsStore } from '@/state/useQmsStore';
+import { useQmsStore } from './state/useQmsStore';
 import { ICONS } from './constants';
 import { UserRole, User, Service, Station, QmsState, Ticket, TicketStatus, Printer } from './types';
 import TotemView from './components/TotemView';
