@@ -9,7 +9,7 @@ import StaffView from '@/components/StaffView';
 import DashboardView from '@/components/DashboardView';
 import TechnicalInfoView from '@/components/TechnicalInfoView';
 import PublicDisplayView from '@/components/PublicDisplayView';
-import LoginView from './components/LoginView.tsx';
+import LoginView from '@/components/LoginView';
 import UserManagementView from '@/components/UserManagementView';
 import ServiceManagementView from '@/components/ServiceManagementView';
 import StationManagementView from '@/components/StationManagementView';
