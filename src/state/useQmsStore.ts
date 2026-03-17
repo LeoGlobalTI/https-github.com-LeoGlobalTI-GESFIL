@@ -491,33 +491,30 @@ export const useQmsStore = () => {
   }, []);
 
   const resetSystem = useCallback(async () => {
-    // Use window.confirm for better compatibility in iframes
-    if (window.confirm("¿Confirmar purga diaria? Esta acción eliminará todos los tickets y reiniciará los turnos a 0001.")) {
-      try {
-        // Delete all tickets instead of just cancelling them
-        const { error: deleteError } = await supabase
-          .from('tickets')
-          .delete()
-          .neq('id', '00000000-0000-0000-0000-000000000000'); // Deletes all rows
-          
-        if (deleteError) {
-          console.error('Delete error:', deleteError);
-          throw deleteError;
-        }
+    try {
+      // Delete all tickets instead of just cancelling them
+      const { error: deleteError } = await supabase
+        .from('tickets')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deletes all rows
         
-        // Also reset local state immediately to avoid waiting for realtime
-        const today = new Date().toISOString().split('T')[0];
-        setState(prev => ({
-          ...prev,
-          tickets: [],
-          nextSequence: { lastResetDate: today, sequences: {} }
-        }));
-        
-        alert('Sistema purgado correctamente. Los turnos han sido reiniciados.');
-      } catch (error) {
-        console.error('Error during system purge:', error);
-        alert('Error al purgar el sistema.');
+      if (deleteError) {
+        console.error('Delete error:', deleteError);
+        throw deleteError;
       }
+      
+      // Also reset local state immediately to avoid waiting for realtime
+      const today = new Date().toISOString().split('T')[0];
+      setState(prev => ({
+        ...prev,
+        tickets: [],
+        nextSequence: { lastResetDate: today, sequences: {} }
+      }));
+      
+      alert('Sistema purgado correctamente. Los turnos han sido reiniciados.');
+    } catch (error) {
+      console.error('Error during system purge:', error);
+      alert('Error al purgar el sistema.');
     }
   }, []);
 

@@ -186,7 +186,7 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
               >
                 <option value={PrinterType.NETWORK}>Red (TCP/IP)</option>
                 <option value={PrinterType.USB}>Local (USB)</option>
-                <option value={PrinterType.BROWSER}>Navegador (Ventana)</option>
+                <option value={PrinterType.BROWSER}>Impresora del Sistema (Diálogo)</option>
               </select>
             </div>
             <div className="space-y-2">

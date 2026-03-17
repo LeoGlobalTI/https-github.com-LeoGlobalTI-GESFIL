@@ -4,6 +4,7 @@ import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from
 import { useQmsStore } from '@/state/useQmsStore';
 import { ICONS } from '@/constants';
 import { UserRole, User, Service, Station, QmsState, Ticket, TicketStatus, Printer } from '@/types';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import TotemView from '@/components/TotemView';
 import StaffView from '@/components/StaffView';
 import DashboardView from '@/components/DashboardView';
@@ -93,9 +94,17 @@ const AdminPanel: React.FC<{
   onToggleService: (id: string, active: boolean) => void
 }> = ({ state, reset, seed, userRole, users, onAddUser, onUpdateUser, onDeleteUser, services, onAddService, onUpdateService, onDeleteService, stations, onAddStation, onUpdateStation, onDeleteStation, printers, onAddPrinter, onUpdatePrinter, onDeletePrinter, onToggleService }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'services' | 'stations' | 'analytics' | 'printers'>('users');
+  const [showResetModal, setShowResetModal] = useState(false);
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-10 space-y-8 animate-fade-in pb-40">
+      <ConfirmationModal 
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        onConfirm={reset}
+        title="Purgar Sistema"
+        message="¿Confirmar purga diaria? Esta acción eliminará todos los tickets y reiniciará los turnos a 0001."
+      />
       {/* Superadmin Executive Master Header */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
         <div className="lg:col-span-7 bg-slate-900 p-10 rounded-[3.5rem] text-white shadow-2xl relative overflow-hidden flex flex-col justify-between border border-white/5">
@@ -198,7 +207,7 @@ const AdminPanel: React.FC<{
                {userRole === UserRole.SUPERADMIN && (
                  <div className="space-y-3">
                    <button 
-                     onClick={reset}
+                     onClick={() => setShowResetModal(true)}
                      className="w-full py-4 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 font-black hover:bg-rose-500 hover:text-white transition-all duration-300 uppercase tracking-widest text-[9px]"
                    >
                      Purgar Sistema
