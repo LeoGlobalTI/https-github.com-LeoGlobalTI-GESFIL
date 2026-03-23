@@ -68,7 +68,8 @@ export interface Ticket {
 export enum PrinterType {
   USB = 'USB',
   NETWORK = 'NETWORK',
-  BROWSER = 'BROWSER'
+  BROWSER = 'BROWSER',
+  BRIDGE = 'BRIDGE'
 }
 
 export interface Printer {

@@ -186,16 +186,19 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
               >
                 <option value={PrinterType.NETWORK}>Red (TCP/IP)</option>
                 <option value={PrinterType.USB}>Local (USB)</option>
+                <option value={PrinterType.BRIDGE}>Bridge GESFIL (Local Server)</option>
                 <option value={PrinterType.BROWSER}>Impresora del Sistema (Diálogo)</option>
               </select>
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                {newPrinter.type === PrinterType.NETWORK ? 'Dirección IP o URL de Proxy' : 'Identificador USB'}
+                {newPrinter.type === PrinterType.NETWORK ? 'Dirección IP o URL de Proxy' : 
+                 newPrinter.type === PrinterType.BRIDGE ? 'URL del Bridge (server.js)' : 'Identificador USB'}
               </label>
               <input
                 type="text"
-                placeholder={newPrinter.type === PrinterType.NETWORK ? '192.168.1.100 o http://localhost:5000' : 'USB001'}
+                placeholder={newPrinter.type === PrinterType.NETWORK ? '192.168.1.100 o http://localhost:5000' : 
+                             newPrinter.type === PrinterType.BRIDGE ? 'http://localhost:3001/imprimir' : 'USB001'}
                 value={newPrinter.address}
                 onChange={e => setNewPrinter({ ...newPrinter, address: e.target.value })}
                 className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm"
@@ -203,6 +206,11 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
               {newPrinter.type === PrinterType.NETWORK && (
                 <p className="text-[9px] text-slate-400 mt-1 px-1">
                   Use una IP para modo manual (requiere diálogo) o una URL (http://...) para impresión silenciosa vía proxy.
+                </p>
+              )}
+              {newPrinter.type === PrinterType.BRIDGE && (
+                <p className="text-[9px] text-indigo-400 mt-1 px-1 font-bold">
+                  Recomendado: Use http://localhost:3001/imprimir si el bridge está en esta PC.
                 </p>
               )}
             </div>
@@ -262,7 +270,7 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
           <div key={printer.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
             <div className="flex items-start justify-between mb-6">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${printer.active ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'}`}>
-                {printer.type === PrinterType.NETWORK ? (
+                {printer.type === PrinterType.NETWORK || printer.type === PrinterType.BRIDGE ? (
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v8"/><path d="m16 6-4 4-4-4"/><rect x="7" y="16" width="10" height="6" rx="2"/><path d="M7 10v4a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-4"/></svg>
@@ -284,7 +292,9 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
             <div className="space-y-1">
               <h4 className="font-black text-slate-900">{printer.name}</h4>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                {printer.type === PrinterType.NETWORK ? `IP: ${printer.address}:${printer.port}` : `USB: ${printer.address}`}
+                {printer.type === PrinterType.NETWORK ? `IP: ${printer.address}:${printer.port}` : 
+                 printer.type === PrinterType.BRIDGE ? `BRIDGE: ${printer.address || 'http://localhost:3001/imprimir'}` :
+                 `USB: ${printer.address}`}
               </p>
             </div>
 

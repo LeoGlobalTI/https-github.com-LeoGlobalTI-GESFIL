@@ -20,24 +20,96 @@ export class PrinterService {
           console.warn("Fallo impresión de red, intentando fallback a navegador:", netError.message);
           return this.printBrowser(ticketData);
         }
+      } else if (printer.type === PrinterType.BRIDGE) {
+        try {
+          return await this.printBridge(printer, ticketData);
+        } catch (bridgeError: any) {
+          console.warn("Fallo impresión por Bridge, intentando fallback a navegador:", bridgeError.message);
+          return this.printBrowser(ticketData);
+        }
       } else if (printer.type === PrinterType.BROWSER) {
         return this.printBrowser(ticketData);
       }
     } catch (error: any) {
       console.error("Error en printTicket:", error);
-      // Si falla el USB por acceso denegado o dispositivo ocupado, intentamos fallback a browser
+      // Si falla el USB o Bridge por acceso denegado o dispositivo ocupado, intentamos fallback a browser
       const isAccessDenied = 
         error.name === 'SecurityError' || 
         error.name === 'NetworkError' ||
         error.message.includes('Access denied') || 
         error.message.includes('Acceso denegado') ||
-        error.message.includes('siendo usada');
+        error.message.includes('siendo usada') ||
+        error.message.includes('Failed to fetch');
 
-      if (printer.type === PrinterType.USB && isAccessDenied) {
-        console.warn("Fallo USB (permisos o ocupado), intentando fallback a navegador...");
+      if ((printer.type === PrinterType.USB || printer.type === PrinterType.BRIDGE) && isAccessDenied) {
+        console.warn("Fallo impresión física, intentando fallback a navegador...");
         return this.printBrowser(ticketData);
       }
       throw error;
+    }
+  }
+
+  private static getEscPosString(data: any): string {
+    // Comandos ESC/POS básicos
+    const init = "\x1B\x40";
+    const center = "\x1B\x61\x01";
+    const boldOn = "\x1B\x45\x01";
+    const boldOff = "\x1B\x45\x00";
+    const sizeLarge = "\x1D\x21\x11";
+    const sizeNormal = "\x1D\x21\x00";
+    const cut = "\x1D\x56\x00";
+    const feed = "\n\n\n";
+
+    return [
+      init,
+      center,
+      boldOn,
+      "GESFIL\n",
+      boldOff,
+      "Sistema de Gestion de Fila\n\n",
+      "SU TURNO ES\n",
+      sizeLarge,
+      `${data.prefix} ${data.number}\n`,
+      sizeNormal,
+      data.isPriority ? "--- PREFERENTE ---\n" : "",
+      "\n",
+      boldOn,
+      "AREA DE ATENCION\n",
+      boldOff,
+      `${data.serviceName}\n\n`,
+      `${data.date} - ${data.time}\n`,
+      "Gracias por su visita\n",
+      feed,
+      cut
+    ].join("");
+  }
+
+  private static getEscPosCommands(data: any): Uint8Array {
+    const encoder = new TextEncoder();
+    return encoder.encode(this.getEscPosString(data));
+  }
+
+  private static async printBridge(printer: Printer, data: any) {
+    const bridgeUrl = printer.address || 'http://localhost:3001/imprimir';
+    const commands = this.getEscPosString(data);
+
+    try {
+      const response = await fetch(bridgeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8'
+        },
+        body: commands,
+        mode: 'cors'
+      });
+
+      if (!response.ok) {
+        throw new Error(`El Bridge respondió con error: ${response.status}`);
+      }
+      return true;
+    } catch (e: any) {
+      console.error("Error enviando a Bridge de impresión:", e);
+      throw new Error(`Error de conexión con el Bridge en ${bridgeUrl}. Verifique que el servidor local (server.js) esté activo.`);
     }
   }
 
@@ -174,43 +246,8 @@ export class PrinterService {
         throw e;
       }
 
-      const encoder = new TextEncoder();
-      const esc = (cmd: string) => encoder.encode(cmd);
-
-      // Comandos ESC/POS básicos
-      const init = "\x1B\x40";
-      const center = "\x1B\x61\x01";
-      const boldOn = "\x1B\x45\x01";
-      const boldOff = "\x1B\x45\x00";
-      const sizeLarge = "\x1D\x21\x11";
-      const sizeNormal = "\x1D\x21\x00";
-      const cut = "\x1D\x56\x00";
-      const feed = "\n\n\n";
-
-      const commands = [
-        init,
-        center,
-        boldOn,
-        "GESFIL\n",
-        boldOff,
-        "Sistema de Gestion de Fila\n\n",
-        "SU TURNO ES\n",
-        sizeLarge,
-        `${data.prefix} ${data.number}\n`,
-        sizeNormal,
-        data.isPriority ? "--- PREFERENTE ---\n" : "",
-        "\n",
-        boldOn,
-        "AREA DE ATENCION\n",
-        boldOff,
-        `${data.serviceName}\n\n`,
-        `${data.date} - ${data.time}\n`,
-        "Gracias por su visita\n",
-        feed,
-        cut
-      ].join("");
-
-      await device.transferOut(endpointOut, encoder.encode(commands));
+      const commands = this.getEscPosCommands(data);
+      await device.transferOut(endpointOut, commands);
       return true;
     } catch (error) {
       console.error("Error de impresión USB:", error);
