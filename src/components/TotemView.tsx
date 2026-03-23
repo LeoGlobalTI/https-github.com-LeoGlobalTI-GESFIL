@@ -53,14 +53,21 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
       
       if (activePrinters.length > 0) {
         const now = new Date();
+        const fechaStr = now.toLocaleDateString('es-CL');
+        const horaStr = now.toLocaleTimeString('es-CL', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: true 
+        }).toLowerCase().replace(' ', ' p. m.');
+
         const ticketData = {
           code: issuedTicket.code,
           prefix: issuedTicket.prefix,
           number: issuedTicket.code.replace(issuedTicket.prefix, ''),
           serviceName: issuedTicket.serviceName,
           isPriority: issuedTicket.isPriority,
-          date: now.toLocaleDateString(),
-          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          date: fechaStr,
+          time: horaStr
         };
 
         // Imprimir en todas las impresoras activas
@@ -72,14 +79,21 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
       } else {
         // Si no hay impresoras configuradas, usamos el modo navegador como fallback limpio
         const now = new Date();
+        const fechaStr = now.toLocaleDateString('es-CL');
+        const horaStr = now.toLocaleTimeString('es-CL', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: true 
+        }).toLowerCase().replace(' ', ' p. m.');
+
         const ticketData = {
           code: issuedTicket.code,
           prefix: issuedTicket.prefix,
           number: issuedTicket.code.replace(issuedTicket.prefix, ''),
           serviceName: issuedTicket.serviceName,
           isPriority: issuedTicket.isPriority,
-          date: now.toLocaleDateString(),
-          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          date: fechaStr,
+          time: horaStr
         };
 
         const virtualPrinter: Printer = {

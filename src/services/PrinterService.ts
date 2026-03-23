@@ -50,38 +50,49 @@ export class PrinterService {
   }
 
   private static getEscPosString(data: any): string {
-    // Comandos ESC/POS básicos
-    const init = "\x1B\x40";
-    const center = "\x1B\x61\x01";
-    const boldOn = "\x1B\x45\x01";
-    const boldOff = "\x1B\x45\x00";
-    const sizeLarge = "\x1D\x21\x11";
-    const sizeNormal = "\x1D\x21\x00";
-    const cut = "\x1D\x56\x00";
-    const feed = "\n\n\n";
+    // --- Comandos ESC/POS (Estándar Epson) ---
+    const ESC = "\x1B";
+    const GS = "\x1D";
+    const INIT = ESC + "@";               // Inicializar
+    const CENTRAR = ESC + "a\x01";        // Alinear al centro
+    const NEGRITA_ON = ESC + "E\x01";     // Negrita activada
+    const NEGRITA_OFF = ESC + "E\x00";    // Negrita desactivada
+    const TAMANO_NORMAL = GS + "!\x00";   // Fuente normal
+    const TAMANO_GRANDE = GS + "!\x11";   // Doble ancho y alto para el turno
+    const CORTE = GS + "V" + String.fromCharCode(65) + String.fromCharCode(3);
 
-    return [
-      init,
-      center,
-      boldOn,
-      "GESFIL\n",
-      boldOff,
-      "Sistema de Gestion de Fila\n\n",
-      "SU TURNO ES\n",
-      sizeLarge,
-      `${data.prefix} ${data.number}\n`,
-      sizeNormal,
-      data.isPriority ? "--- PREFERENTE ---\n" : "",
-      "\n",
-      boldOn,
-      "AREA DE ATENCION\n",
-      boldOff,
-      `${data.serviceName}\n\n`,
-      `${data.date} - ${data.time}\n`,
-      "Gracias por su visita\n",
-      feed,
-      cut
-    ].join("");
+    // --- Formateo de Fecha y Hora (Siguiendo tu ejemplo) ---
+    // Nota: Usamos los datos que vienen del componente para mantener consistencia
+    // pero aplicamos el estilo de tu ejemplo si es necesario.
+    
+    let ticket = INIT + CENTRAR;
+    
+    // Encabezado
+    ticket += NEGRITA_ON + TAMANO_NORMAL + "GESFIL\n";
+    ticket += NEGRITA_OFF + "Sistema de Gestión de Fila\n";
+    ticket += "________________________________\n\n";
+    
+    // Cuerpo: Turno
+    ticket += "SU TURNO ES\n\n";
+    ticket += NEGRITA_ON + TAMANO_GRANDE + `${data.prefix} ${data.number}` + "\n\n";
+    ticket += NEGRITA_OFF + TAMANO_NORMAL;
+
+    if (data.isPriority) {
+      ticket += NEGRITA_ON + "--- PREFERENTE ---\n\n" + NEGRITA_OFF;
+    }
+    
+    // Cuerpo: Área
+    ticket += NEGRITA_ON + "ÁREA DE ATENCIÓN\n";
+    ticket += NEGRITA_OFF + data.serviceName + "\n\n";
+    
+    // Pie de página
+    ticket += `${data.date} - ${data.time}\n`;
+    ticket += "Gracias por su visita\n";
+    
+    // Espacio final y corte
+    ticket += "\n\n\n\n" + CORTE;
+
+    return ticket;
   }
 
   private static getEscPosCommands(data: any): Uint8Array {
@@ -109,7 +120,20 @@ export class PrinterService {
       return true;
     } catch (e: any) {
       console.error("Error enviando a Bridge de impresión:", e);
-      throw new Error(`Error de conexión con el Bridge en ${bridgeUrl}. Verifique que el servidor local (server.js) esté activo.`);
+      
+      // Detectar bloqueo de contenido mixto (HTTPS -> HTTP)
+      const isHttps = window.location.protocol === 'https:';
+      const isLocal = bridgeUrl.includes('localhost') || bridgeUrl.includes('127.0.0.1');
+      
+      if (e.message === 'Failed to fetch' || e.name === 'TypeError') {
+        if (isHttps && !isLocal && bridgeUrl.startsWith('http:')) {
+          throw new Error(`BLOQUEO DE SEGURIDAD: El navegador bloquea la conexión a una IP privada (${bridgeUrl}) desde HTTPS.\n\nSOLUCIÓN:\n1. Haz clic en el candado de la URL.\n2. Ve a "Configuración del sitio".\n3. Cambia "Contenido no seguro" a "Permitir".\n4. Recarga la página.`);
+        } else {
+          throw new Error(`ERROR DE CONEXIÓN: No se pudo encontrar el Bridge en ${bridgeUrl}.\n\n1. Verifique que 'node server.js' esté ejecutándose en su PC.\n2. Asegúrese de que la dirección IP/Puerto sea correcta.`);
+        }
+      }
+
+      throw e;
     }
   }
 

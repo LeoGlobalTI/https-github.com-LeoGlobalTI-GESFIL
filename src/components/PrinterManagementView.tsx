@@ -90,14 +90,21 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
   const handleTestPrint = async (printer: Printer) => {
     try {
       const now = new Date();
+      const fechaStr = now.toLocaleDateString('es-CL');
+      const horaStr = now.toLocaleTimeString('es-CL', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+      }).toLowerCase().replace(' ', ' p. m.');
+
       await PrinterService.printTicket(printer, {
         code: 'TEST-000',
         prefix: 'TEST',
         number: '000',
         serviceName: 'PRUEBA DE SISTEMA',
         isPriority: false,
-        date: now.toLocaleDateString(),
-        time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        date: fechaStr,
+        time: horaStr
       });
       if (printer.type !== PrinterType.BROWSER) {
         alert(`Test enviado con éxito a ${printer.name}`);
@@ -107,32 +114,126 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
     }
   };
 
+  const [checkingBridgeId, setCheckingBridgeId] = useState<string | null>(null);
+
+  const checkBridgeStatus = async (printer: Printer) => {
+    setCheckingBridgeId(printer.id);
+    const bridgeUrl = printer.address || 'http://localhost:3001/imprimir';
+    
+    try {
+      // Intentamos un ping rápido (OPTIONS o POST vacío)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      await fetch(bridgeUrl, { 
+        method: 'OPTIONS', 
+        mode: 'cors',
+        signal: controller.signal 
+      });
+      
+      clearTimeout(timeoutId);
+      alert(`✅ Conexión exitosa con el Bridge en ${bridgeUrl}. El servidor está respondiendo correctamente.`);
+    } catch (err: any) {
+      console.error("Bridge Check Error:", err);
+      
+      const isHttps = window.location.protocol === 'https:';
+      const isLocal = bridgeUrl.includes('localhost') || bridgeUrl.includes('127.0.0.1');
+
+      if (err.name === 'AbortError') {
+        alert(`❌ Tiempo de espera agotado. El Bridge en ${bridgeUrl} no respondió a tiempo.`);
+      } else if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+        if (isHttps && !isLocal && bridgeUrl.startsWith('http:')) {
+          alert(`⚠️ BLOQUEO DE SEGURIDAD (Mixed Content):\n\nLa aplicación es segura (HTTPS) pero el Bridge es HTTP.\n\nSOLUCIÓN:\n1. Haz clic en el candado junto a la URL.\n2. Ve a 'Configuración del sitio'.\n3. Cambia 'Contenido no seguro' a 'Permitir'.\n4. Recarga la página.`);
+        } else {
+          alert(`❌ ERROR DE CONEXIÓN: No se pudo encontrar el Bridge en ${bridgeUrl}.\n\n1. Asegúrese de que 'node server.js' esté ejecutándose en su PC.\n2. Verifique que la dirección IP/Puerto sea correcta.`);
+        }
+      } else {
+        alert(`❌ Error inesperado: ${err.message}`);
+      }
+    } finally {
+      setCheckingBridgeId(null);
+    }
+  };
+
+  const copyBridgeCode = () => {
+    const code = `const express = require('express');
+const cors = require('cors');
+const fs = require('fs');
+const { exec } = require('child_process');
+const path = require('path');
+
+const app = express();
+
+// Configuración de red del usuario
+const EQUIPO = "lnunez";
+const IMPRESORA = "epsontm";
+
+app.use(cors());
+app.use(express.text({ type: '*/*', limit: '1mb' })); 
+
+app.post('/imprimir', (req, res) => {
+    const ticketData = req.body;
+    const tempFilePath = path.join(__dirname, 'temp_ticket.bin');
+
+    // Escribir los comandos ESC/POS al archivo binario
+    fs.writeFileSync(tempFilePath, ticketData, 'binary');
+
+    // Comando para inyectar al spooler de Windows
+    const comando = \`copy /b "\${tempFilePath}" "\\\\\\\\\${EQUIPO}\\\\\${IMPRESORA}"\`;
+
+    exec(comando, (error) => {
+        if (error) {
+            console.error(\`Error: \${error.message}\`);
+            return res.status(500).json({ success: false, error: error.message });
+        }
+        res.json({ success: true });
+    });
+});
+
+app.listen(3001, '0.0.0.0', () => {
+    console.log(\`>>> Bridge GESFIL activo en http://localhost:3001\`);
+    console.log(\`>>> Imprimiendo en: \\\\\\\\\${EQUIPO}\\\\\${IMPRESORA}\`);
+});`;
+    navigator.clipboard.writeText(code);
+    alert("Código del Bridge copiado al portapapeles. Guárdelo como 'server.js' y ejecútelo con 'node server.js' en su PC.");
+  };
+
   return (
     <div className="p-8 space-y-8 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Gestión de Impresoras</h2>
-          <p className="text-slate-500 text-sm font-medium">Configure terminales de impresión térmica USB y Red.</p>
+          <p className="text-slate-500 text-sm font-medium">Configure terminales de impresión térmica USB, Red o Bridge Local.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={copyBridgeCode}
+            className="px-5 py-3 bg-slate-100 text-slate-600 border-2 border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            Copiar Bridge.js
+          </button>
+          <button
+            onClick={() => {
+              setNewPrinter({
+                name: 'Bridge Local',
+                type: PrinterType.BRIDGE,
+                address: 'http://localhost:3001/imprimir',
+                active: true
+              });
+              setIsAdding(true);
+            }}
+            className="px-5 py-3 bg-indigo-50 text-indigo-600 border-2 border-indigo-100 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Configurar Bridge
+          </button>
           <button
             onClick={discoverUSB}
             className="px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:border-indigo-600 hover:text-indigo-600 transition-all flex items-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v8"/><path d="m16 6-4 4-4-4"/><rect x="7" y="16" width="10" height="6" rx="2"/><path d="M7 10v4a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-4"/></svg>
             Buscar USB
-          </button>
-          <button
-            onClick={simulateNetworkScan}
-            disabled={isSearching}
-            className="px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:border-indigo-600 hover:text-indigo-600 transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            {isSearching ? (
-              <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/></svg>
-            )}
-            Escanear Red
           </button>
           <button
             onClick={() => setIsAdding(true)}
@@ -309,6 +410,15 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
                 >
                   Test
                 </button>
+                {printer.type === PrinterType.BRIDGE && (
+                  <button 
+                    onClick={() => checkBridgeStatus(printer)}
+                    disabled={checkingBridgeId === printer.id}
+                    className="text-[9px] font-black text-emerald-600 uppercase tracking-widest hover:underline disabled:opacity-50"
+                  >
+                    {checkingBridgeId === printer.id ? 'Verificando...' : 'Verificar Bridge'}
+                  </button>
+                )}
                 {printer.type === PrinterType.USB && (
                   <>
                     <button 
