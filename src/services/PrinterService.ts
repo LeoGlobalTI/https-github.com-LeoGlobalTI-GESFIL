@@ -111,11 +111,12 @@ export class PrinterService {
           'Content-Type': 'text/plain; charset=utf-8'
         },
         body: commands,
-        mode: 'no-cors' // Use no-cors to avoid CORS errors from local bridge servers
+        mode: 'cors'
       });
 
-      // With no-cors, the response is opaque, so response.ok is false and status is 0.
-      // We assume success if fetch didn't throw a network error.
+      if (!response.ok) {
+        throw new Error(`El Bridge respondió con error: ${response.status}`);
+      }
       return true;
     } catch (e: any) {
       console.error("Error enviando a Bridge de impresión:", e);
@@ -128,7 +129,7 @@ export class PrinterService {
         if (isHttps && !isLocal && bridgeUrl.startsWith('http:')) {
           throw new Error(`BLOQUEO DE SEGURIDAD: El navegador bloquea la conexión a una IP privada (${bridgeUrl}) desde HTTPS.\n\nSOLUCIÓN:\n1. Haz clic en el candado de la URL.\n2. Ve a "Configuración del sitio".\n3. Cambia "Contenido no seguro" a "Permitir".\n4. Recarga la página.`);
         } else {
-          throw new Error(`ERROR DE CONEXIÓN: No se pudo encontrar el Bridge en ${bridgeUrl}.\n\n1. Verifique que 'node server.js' esté ejecutándose en su PC.\n2. Asegúrese de que la dirección IP/Puerto sea correcta y que no haya problemas de CORS.`);
+          throw new Error(`ERROR DE CONEXIÓN: No se pudo encontrar el Bridge en ${bridgeUrl}.\n\n1. Verifique que 'node server.js' esté ejecutándose en su PC.\n2. Asegúrese de que la dirección IP/Puerto sea correcta.`);
         }
       }
 

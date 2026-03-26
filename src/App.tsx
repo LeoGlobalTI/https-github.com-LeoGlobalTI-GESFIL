@@ -348,9 +348,7 @@ const App: React.FC = () => {
               ? <TotemView services={state.services.filter(s => isServiceActive(s))} nextSequence={state.nextSequence} onIssueTicket={addTicket} printers={state.printers} /> 
               : role === UserRole.DISPLAY
                 ? <Navigate to="/display" />
-                : role === UserRole.STAFF
-                  ? <Navigate to="/staff" />
-                  : <div className="p-10 text-center text-slate-500">Rol no reconocido. Contacte al administrador.</div>
+                : <Navigate to="/staff" />
           } />
           
           <Route path="/staff" element={
@@ -367,9 +365,7 @@ const App: React.FC = () => {
               </div>
             ) : role === UserRole.DISPLAY
               ? <Navigate to="/display" />
-              : [UserRole.TOTEM, UserRole.ADMIN, UserRole.SUPERADMIN].includes(role)
-                ? <Navigate to="/" />
-                : <div className="p-10 text-center text-slate-500">Rol no reconocido. Contacte al administrador.</div>
+              : <Navigate to="/" />
           } />
           
           <Route path="/display" element={

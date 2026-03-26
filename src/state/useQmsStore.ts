@@ -42,7 +42,7 @@ const mapTicketFromDb = (t: any): Ticket => {
     id: t.id,
     code: t.code,
     serviceId: t.service_id,
-    status: (t.status || '').toUpperCase() as TicketStatus,
+    status: t.status as TicketStatus,
     createdAt: isNaN(createdAtDate) ? Date.now() : createdAtDate,
     calledAt: (calledAtDate !== undefined && !isNaN(calledAtDate)) ? calledAtDate : undefined,
     startedAt: (startedAtDate !== undefined && !isNaN(startedAtDate)) ? startedAtDate : undefined,
@@ -60,7 +60,7 @@ const mapUserFromDb = (u: any): User => ({
   username: u.username,
   password: u.password,
   name: u.name,
-  role: (u.role || '').toUpperCase() as UserRole,
+  role: u.role as UserRole,
   assignedStationId: u.assigned_station_id
 });
 
@@ -99,24 +99,21 @@ export const useQmsStore = () => {
   // Initial data fetch and Real-time subscriptions
   useEffect(() => {
     const fetchAll = async () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const [
-          { data: services },
-          { data: stations },
-          { data: tickets },
-          { data: users },
-          { data: printers },
-          { data: config }
-        ] = await Promise.all([
-          supabase.from('services').select('*'),
-          supabase.from('stations').select('*'),
-          supabase.from('tickets').select('*').gte('created_at', today.toISOString()).order('created_at', { ascending: false }),
-          supabase.from('users').select('*'),
-          supabase.from('printers').select('*'),
-          supabase.from('system_config').select('*').eq('key', 'nextSequence').maybeSingle()
-        ]);
+      const [
+        { data: services },
+        { data: stations },
+        { data: tickets },
+        { data: users },
+        { data: printers },
+        { data: config }
+      ] = await Promise.all([
+        supabase.from('services').select('*'),
+        supabase.from('stations').select('*'),
+        supabase.from('tickets').select('*').order('created_at', { ascending: false }),
+        supabase.from('users').select('*'),
+        supabase.from('printers').select('*'),
+        supabase.from('system_config').select('*').eq('key', 'nextSequence').maybeSingle()
+      ]);
 
       setState(prev => ({
         ...prev,
