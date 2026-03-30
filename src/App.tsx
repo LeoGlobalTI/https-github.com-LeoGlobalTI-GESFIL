@@ -244,7 +244,7 @@ const AdminPanel: React.FC<{
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent"></div>
           
           <div className="flex-grow overflow-y-auto custom-scrollbar">
-            {activeTab === 'users' && <UserManagementView users={users} onAdd={onAddUser} onUpdate={onUpdateUser} onDelete={onDeleteUser} stations={stations} />}
+            {activeTab === 'users' && <UserManagementView users={users} onAdd={onAddUser} onUpdate={onUpdateUser} onDelete={onDeleteUser} stations={stations} currentUserRole={userRole} />}
             {activeTab === 'services' && <ServiceManagementView services={services} onAdd={onAddService} onUpdate={onUpdateService} onDelete={onDeleteService} />}
             {activeTab === 'stations' && <StationManagementView stations={stations} services={services} onAdd={onAddStation} onUpdate={onUpdateStation} onDelete={onDeleteStation} />}
             {activeTab === 'printers' && <PrinterManagementView printers={printers} onAdd={onAddPrinter} onUpdate={onUpdatePrinter} onDelete={onDeletePrinter} />}
@@ -348,7 +348,9 @@ const App: React.FC = () => {
               ? <TotemView services={state.services.filter(s => isServiceActive(s))} nextSequence={state.nextSequence} onIssueTicket={addTicket} printers={state.printers} /> 
               : role === UserRole.DISPLAY
                 ? <Navigate to="/display" />
-                : <Navigate to="/staff" />
+                : role === UserRole.STAFF
+                  ? <Navigate to="/staff" />
+                  : <div className="p-10 text-center text-slate-500">Rol no reconocido. Contacte al administrador.</div>
           } />
           
           <Route path="/staff" element={
@@ -365,7 +367,9 @@ const App: React.FC = () => {
               </div>
             ) : role === UserRole.DISPLAY
               ? <Navigate to="/display" />
-              : <Navigate to="/" />
+              : [UserRole.TOTEM, UserRole.ADMIN, UserRole.SUPERADMIN].includes(role)
+                ? <Navigate to="/" />
+                : <div className="p-10 text-center text-slate-500">Rol no reconocido. Contacte al administrador.</div>
           } />
           
           <Route path="/display" element={
@@ -377,39 +381,29 @@ const App: React.FC = () => {
           <Route path="/admin" element={
             [UserRole.ADMIN, UserRole.SUPERADMIN].includes(role) ? (
               <div className="space-y-4">
-                {role === UserRole.ADMIN && (
-                   <DashboardView 
-                    tickets={state.tickets} 
-                    services={state.services} 
-                    stations={state.stations} 
-                    onToggleService={onToggleService}
-                  />
-                )}
-                {role === UserRole.SUPERADMIN && (
-                   <AdminPanel 
-                    state={state}
-                    reset={resetSystem} 
-                    seed={seedDatabase}
-                    userRole={role} 
-                    users={state.users}
-                    onAddUser={addUser}
-                    onUpdateUser={updateUser}
-                    onDeleteUser={deleteUser}
-                    services={state.services}
-                    onAddService={addService}
-                    onUpdateService={updateService}
-                    onDeleteService={deleteService}
-                    stations={state.stations}
-                    onAddStation={addStation}
-                    onUpdateStation={updateStation}
-                    onDeleteStation={deleteStation}
-                    printers={state.printers}
-                    onAddPrinter={addPrinter}
-                    onUpdatePrinter={updatePrinter}
-                    onDeletePrinter={deletePrinter}
-                    onToggleService={onToggleService}
-                  />
-                )}
+                <AdminPanel 
+                  state={state}
+                  reset={resetSystem} 
+                  seed={seedDatabase}
+                  userRole={role} 
+                  users={state.users}
+                  onAddUser={addUser}
+                  onUpdateUser={updateUser}
+                  onDeleteUser={deleteUser}
+                  services={state.services}
+                  onAddService={addService}
+                  onUpdateService={updateService}
+                  onDeleteService={deleteService}
+                  stations={state.stations}
+                  onAddStation={addStation}
+                  onUpdateStation={updateStation}
+                  onDeleteStation={deleteStation}
+                  printers={state.printers}
+                  onAddPrinter={addPrinter}
+                  onUpdatePrinter={updatePrinter}
+                  onDeletePrinter={deletePrinter}
+                  onToggleService={onToggleService}
+                />
               </div>
             ) : <Navigate to="/" />
           } />

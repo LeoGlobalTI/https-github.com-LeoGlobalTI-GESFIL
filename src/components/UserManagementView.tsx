@@ -9,9 +9,10 @@ interface UserManagementViewProps {
   onUpdate: (id: string, updates: Partial<User>) => void;
   onDelete: (id: string) => void;
   stations: Station[];
+  currentUserRole: UserRole;
 }
 
-const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAdd, onUpdate, onDelete, stations }) => {
+const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAdd, onUpdate, onDelete, stations, currentUserRole }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -115,12 +116,17 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAdd, o
                        </span>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => handleOpenModal(user)} className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                      </button>
-                      <button onClick={() => { setUserToDelete(user); setShowDeleteModal(true); }} className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                      </button>
+                      {/* Only SUPERADMIN can edit/delete anyone. ADMIN can only edit/delete STAFF, TOTEM, DISPLAY */}
+                      {(currentUserRole === UserRole.SUPERADMIN || (currentUserRole === UserRole.ADMIN && ![UserRole.SUPERADMIN, UserRole.ADMIN].includes(user.role))) && (
+                        <>
+                          <button onClick={() => handleOpenModal(user)} className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                          </button>
+                          <button onClick={() => { setUserToDelete(user); setShowDeleteModal(true); }} className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                          </button>
+                        </>
+                      )}
                     </div>
                  </div>
               </div>
@@ -191,8 +197,8 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAdd, o
                   className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-900 appearance-none"
                 >
                   <option value={UserRole.STAFF}>STAFF (Atención)</option>
-                  <option value={UserRole.ADMIN}>ADMIN (Gestión)</option>
-                  <option value={UserRole.SUPERADMIN}>SUPERADMIN (Master)</option>
+                  {currentUserRole === UserRole.SUPERADMIN && <option value={UserRole.ADMIN}>ADMIN (Gestión)</option>}
+                  {currentUserRole === UserRole.SUPERADMIN && <option value={UserRole.SUPERADMIN}>SUPERADMIN (Master)</option>}
                   <option value={UserRole.TOTEM}>TOTEM (Emisor)</option>
                   <option value={UserRole.DISPLAY}>DISPLAY (Monitor)</option>
                 </select>
