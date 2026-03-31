@@ -111,11 +111,13 @@ export class PrinterService {
           'Content-Type': 'text/plain; charset=utf-8'
         },
         body: commands,
-        mode: 'no-cors' // Use no-cors to avoid CORS errors from local bridge servers
+        mode: 'cors'
       });
 
-      // With no-cors, the response is opaque, so response.ok is false and status is 0.
-      // We assume success if fetch didn't throw a network error.
+      if (!response.ok) {
+        throw new Error(`El Bridge de impresión respondió con error: ${response.status}`);
+      }
+      
       return true;
     } catch (e: any) {
       console.error("Error enviando a Bridge de impresión:", e);
