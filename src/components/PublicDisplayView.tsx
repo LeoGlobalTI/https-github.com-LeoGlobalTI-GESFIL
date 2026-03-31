@@ -1,14 +1,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Ticket, Station, TicketStatus, Service } from '@/types';
 
+import { playNotificationSound } from '@/lib/audio';
+
 interface PublicDisplayViewProps {
   tickets: Ticket[];
   stations: Station[];
   services: Service[];
+  displaySettings?: { notificationSound: string };
 }
 
-const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations, services }) => {
+const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations, services, displaySettings }) => {
   const [now, setNow] = useState(new Date());
+  const [lastCalledTicketId, setLastCalledTicketId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -25,11 +29,19 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
       .slice(0, 5),
   [tickets]);
 
+  useEffect(() => {
+    const currentCalling = activeCalls.find(t => t.status === TicketStatus.CALLING);
+    if (currentCalling && currentCalling.id !== lastCalledTicketId) {
+      setLastCalledTicketId(currentCalling.id);
+      playNotificationSound(displaySettings?.notificationSound || 'timbre');
+    }
+  }, [activeCalls, lastCalledTicketId, displaySettings?.notificationSound]);
+
   const waitingList = useMemo(() => 
     tickets
       .filter(t => t.status === TicketStatus.WAITING)
       .sort((a, b) => a.createdAt - b.createdAt)
-      .slice(0, 8),
+      .slice(0, 10),
   [tickets]);
 
   return (
@@ -139,15 +151,6 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
                     Sin turnos pendientes
                  </div>
                )}
-             </div>
-
-             <div className="p-8 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] shadow-2xl shadow-indigo-950 border border-indigo-500 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-10 transition-transform group-hover:scale-125">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                </div>
-                <div className="relative z-10">
-                  <p className="text-indigo-100 text-sm font-bold leading-relaxed">Prepare su documento de identidad y espere a ser llamado en pantalla.</p>
-                </div>
              </div>
            </div>
         </div>

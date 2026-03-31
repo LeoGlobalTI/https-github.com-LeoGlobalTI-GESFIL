@@ -89,6 +89,9 @@ export interface QmsState {
     lastResetDate?: string;
     sequences: Record<string, number>;
   };
+  displaySettings: {
+    notificationSound: string;
+  };
   users: User[];
   currentUser: User | null;
   printers: Printer[];

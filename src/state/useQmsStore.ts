@@ -82,6 +82,7 @@ export const useQmsStore = () => {
     stations: [],
     tickets: [],
     nextSequence: { sequences: {} },
+    displaySettings: { notificationSound: 'timbre' },
     users: [],
     currentUser: null,
     printers: []
@@ -108,15 +109,18 @@ export const useQmsStore = () => {
           { data: tickets },
           { data: users },
           { data: printers },
-          { data: config }
+          { data: configs }
         ] = await Promise.all([
           supabase.from('services').select('*'),
           supabase.from('stations').select('*'),
           supabase.from('tickets').select('*').gte('created_at', today.toISOString()).order('created_at', { ascending: false }),
           supabase.from('users').select('*'),
           supabase.from('printers').select('*'),
-          supabase.from('system_config').select('*').eq('key', 'nextSequence').maybeSingle()
+          supabase.from('system_config').select('*').in('key', ['nextSequence', 'displaySettings'])
         ]);
+
+      const nextSeqConfig = configs?.find(c => c.key === 'nextSequence');
+      const displayConfig = configs?.find(c => c.key === 'displaySettings');
 
       setState(prev => ({
         ...prev,
@@ -125,7 +129,8 @@ export const useQmsStore = () => {
         tickets: (tickets || []).map(mapTicketFromDb),
         users: (users || []).map(mapUserFromDb),
         printers: (printers || []).map(mapPrinterFromDb),
-        nextSequence: config?.value || { sequences: {} }
+        nextSequence: nextSeqConfig?.value || { sequences: {} },
+        displaySettings: displayConfig?.value || { notificationSound: 'timbre' }
       }));
       setLoading(false);
     };
@@ -527,6 +532,11 @@ export const useQmsStore = () => {
     return true;
   }, []);
 
+  const updateDisplaySettings = useCallback(async (settings: { notificationSound: string }) => {
+    setState(prev => ({ ...prev, displaySettings: settings }));
+    await supabase.from('system_config').upsert({ key: 'displaySettings', value: settings });
+  }, []);
+
   const seedDatabase = useCallback(async () => {
     setLoading(true);
     try {
@@ -580,7 +590,7 @@ export const useQmsStore = () => {
     state, loading, login, logout, addTicket, updateTicketStatus, resetSystem, seedDatabase,
     addUser, updateUser, deleteUser, addService, updateService, deleteService, 
     addStation, updateStation, deleteStation, isServiceActive,
-    addPrinter, updatePrinter, deletePrinter,
+    addPrinter, updatePrinter, deletePrinter, updateDisplaySettings,
     isInitialized: state.users.length > 0
   };
 };
