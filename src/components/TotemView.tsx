@@ -21,6 +21,33 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
   const [issuedTicket, setIssuedTicket] = useState<IssuedTicketInfo | null>(null);
   const [isPriority, setIsPriority] = useState<boolean | null>(null);
   const [isIssuing, setIsIssuing] = useState(false);
+  const [showDock, setShowDock] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+
+  useEffect(() => {
+    if (clickCount >= 5) {
+      setShowDock(true);
+      const timer = setTimeout(() => {
+        setShowDock(false);
+        setClickCount(0);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [clickCount]);
+
+  const handleSecretClick = () => {
+    setClickCount(prev => prev + 1);
+  };
+
+  const dockStyle = (
+    <style>{`
+      .dock-nav {
+        opacity: ${showDock ? '1' : '0'};
+        pointer-events: ${showDock ? 'auto' : 'none'};
+        transition: opacity 0.3s ease;
+      }
+    `}</style>
+  );
 
   const handleIssue = async (service: Service) => {
     if (isPriority === null || isIssuing) return;
@@ -220,6 +247,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
             }
           }
         `}</style>
+        {dockStyle}
       </div>
     );
   }
@@ -228,7 +256,10 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     return (
       <div className="max-w-5xl mx-auto px-8 py-12 min-h-[calc(100vh-8rem)] flex flex-col justify-center">
         <header className="text-center mb-8 md:mb-12 animate-fade-in">
-          <div className="w-16 h-16 md:w-20 md:h-20 bg-indigo-600 rounded-2xl md:rounded-[2rem] flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-2xl shadow-indigo-200 animate-float">
+          <div 
+            className="w-16 h-16 md:w-20 md:h-20 bg-indigo-600 rounded-2xl md:rounded-[2rem] flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-2xl shadow-indigo-200 animate-float"
+            onClick={handleSecretClick}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="md:w-9 md:h-9">
               <path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/>
             </svg>
@@ -264,6 +295,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
             <div className="absolute bottom-0 left-0 h-2 w-0 group-hover:w-full transition-all duration-700 bg-amber-500" />
           </button>
         </div>
+        {dockStyle}
       </div>
     );
   }
@@ -278,7 +310,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           Volver al inicio
         </button>
-        <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight mb-4 uppercase">SERVICIOS</h1>
+        <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight mb-4 uppercase" onClick={handleSecretClick}>SERVICIOS</h1>
         <p className="text-base md:text-xl text-slate-500 font-semibold tracking-tight">
           {isPriority ? 'Atención Preferente' : 'Atención General'} • Seleccione el área
         </p>
@@ -322,6 +354,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
       <footer className="mt-20 text-center opacity-40">
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">GESFIL • Terminal de Autoservicio</p>
       </footer>
+      {dockStyle}
     </div>
   );
 };

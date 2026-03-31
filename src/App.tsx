@@ -35,9 +35,9 @@ const Nav: React.FC<{ role: UserRole, logout: () => void, currentUser: User }> =
 
       <div className="flex items-center gap-6 md:gap-8">
         {canSee([UserRole.TOTEM, UserRole.ADMIN, UserRole.SUPERADMIN]) && (
-          <Link title="Totem" to="/" className={`flex flex-col items-center gap-1.5 transition-all group ${isActive('/') ? 'text-indigo-400 scale-110' : 'text-slate-500 hover:text-white'}`}>
+          <Link title="Totem" to="/totem" className={`flex flex-col items-center gap-1.5 transition-all group ${isActive('/totem') ? 'text-indigo-400 scale-110' : 'text-slate-500 hover:text-white'}`}>
             <ICONS.Terminal />
-            <span className={`text-[9px] font-black uppercase tracking-widest transition-opacity ${isActive('/') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>Totem</span>
+            <span className={`text-[9px] font-black uppercase tracking-widest transition-opacity ${isActive('/totem') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>Totem</span>
           </Link>
         )}
         {canSee([UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN]) && (
@@ -377,11 +377,17 @@ const App: React.FC = () => {
       <div className="min-h-screen pb-32 bg-[#f8fafc]">
         <Routes>
           <Route path="/" element={
+            role === UserRole.TOTEM ? <Navigate to="/totem" /> :
+            role === UserRole.DISPLAY ? <Navigate to="/display" /> :
+            role === UserRole.STAFF ? <Navigate to="/staff" /> :
+            [UserRole.ADMIN, UserRole.SUPERADMIN].includes(role) ? <Navigate to="/admin" /> :
+            <Navigate to="/totem" />
+          } />
+
+          <Route path="/totem" element={
             [UserRole.TOTEM, UserRole.ADMIN, UserRole.SUPERADMIN].includes(role) 
               ? <TotemView services={state.services.filter(s => isServiceActive(s))} nextSequence={state.nextSequence} onIssueTicket={addTicket} printers={state.printers} /> 
-              : role === UserRole.DISPLAY
-                ? <Navigate to="/display" />
-                : <Navigate to="/staff" />
+              : <Navigate to="/" />
           } />
           
           <Route path="/staff" element={
@@ -396,9 +402,7 @@ const App: React.FC = () => {
                   updateTicketStatus={updateTicketStatus}
                 />
               </div>
-            ) : role === UserRole.DISPLAY
-              ? <Navigate to="/display" />
-              : <Navigate to="/" />
+            ) : <Navigate to="/" />
           } />
           
           <Route path="/display" element={
