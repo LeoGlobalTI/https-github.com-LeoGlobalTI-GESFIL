@@ -90,9 +90,8 @@ const AdminPanel: React.FC<{
   printers: Printer[],
   onAddPrinter: (p: Omit<Printer, 'id'>) => void,
   onUpdatePrinter: (id: string, p: Partial<Printer>) => void,
-  onDeletePrinter: (id: string) => void,
-  onToggleService: (id: string, active: boolean) => void
-}> = ({ state, reset, seed, userRole, users, onAddUser, onUpdateUser, onDeleteUser, services, onAddService, onUpdateService, onDeleteService, stations, onAddStation, onUpdateStation, onDeleteStation, printers, onAddPrinter, onUpdatePrinter, onDeletePrinter, onToggleService }) => {
+  onDeletePrinter: (id: string) => void
+}> = ({ state, reset, seed, userRole, users, onAddUser, onUpdateUser, onDeleteUser, services, onAddService, onUpdateService, onDeleteService, stations, onAddStation, onUpdateStation, onDeleteStation, printers, onAddPrinter, onUpdatePrinter, onDeletePrinter }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'services' | 'stations' | 'analytics' | 'printers'>('users');
   const [showResetModal, setShowResetModal] = useState(false);
   const [showSeedModal, setShowSeedModal] = useState(false);
@@ -186,7 +185,7 @@ const AdminPanel: React.FC<{
                 { id: 'stations', label: 'Módulos', icon: <ICONS.Terminal />, count: stations.length },
                 { id: 'printers', label: 'Impresoras', icon: <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>, count: printers.length },
                 { id: 'analytics', label: 'BI Hub', icon: <ICONS.Activity />, count: state.tickets.length },
-              ].map(tab => (
+              ].filter(tab => tab.id !== 'printers' || userRole === UserRole.SUPERADMIN).map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
@@ -244,17 +243,16 @@ const AdminPanel: React.FC<{
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent"></div>
           
           <div className="flex-grow overflow-y-auto custom-scrollbar">
-            {activeTab === 'users' && <UserManagementView users={users} onAdd={onAddUser} onUpdate={onUpdateUser} onDelete={onDeleteUser} stations={stations} />}
+            {activeTab === 'users' && <UserManagementView users={users} onAdd={onAddUser} onUpdate={onUpdateUser} onDelete={onDeleteUser} stations={stations} currentUserRole={userRole} />}
             {activeTab === 'services' && <ServiceManagementView services={services} onAdd={onAddService} onUpdate={onUpdateService} onDelete={onDeleteService} />}
             {activeTab === 'stations' && <StationManagementView stations={stations} services={services} onAdd={onAddStation} onUpdate={onUpdateStation} onDelete={onDeleteStation} />}
-            {activeTab === 'printers' && <PrinterManagementView printers={printers} onAdd={onAddPrinter} onUpdate={onUpdatePrinter} onDelete={onDeletePrinter} />}
+            {activeTab === 'printers' && userRole === UserRole.SUPERADMIN && <PrinterManagementView printers={printers} onAdd={onAddPrinter} onUpdate={onUpdatePrinter} onDelete={onDeletePrinter} />}
             {activeTab === 'analytics' && (
               <div className="p-4 lg:p-8">
                  <DashboardView 
                     tickets={state.tickets} 
                     services={state.services} 
                     stations={state.stations} 
-                    onToggleService={onToggleService}
                  />
               </div>
             )}
@@ -330,8 +328,6 @@ const App: React.FC = () => {
     isServiceActive, seedDatabase
   } = useQmsStore();
 
-  const onToggleService = useCallback((id: string, active: boolean) => updateService(id, { active }), [updateService]);
-
   if (!state.currentUser) {
     return <LoginViewComponent onLogin={login} onSeed={seedDatabase} isInitialized={state.users.length > 0} />;
   }
@@ -377,39 +373,28 @@ const App: React.FC = () => {
           <Route path="/admin" element={
             [UserRole.ADMIN, UserRole.SUPERADMIN].includes(role) ? (
               <div className="space-y-4">
-                {role === UserRole.ADMIN && (
-                   <DashboardView 
-                    tickets={state.tickets} 
-                    services={state.services} 
-                    stations={state.stations} 
-                    onToggleService={onToggleService}
-                  />
-                )}
-                {role === UserRole.SUPERADMIN && (
-                   <AdminPanel 
-                    state={state}
-                    reset={resetSystem} 
-                    seed={seedDatabase}
-                    userRole={role} 
-                    users={state.users}
-                    onAddUser={addUser}
-                    onUpdateUser={updateUser}
-                    onDeleteUser={deleteUser}
-                    services={state.services}
-                    onAddService={addService}
-                    onUpdateService={updateService}
-                    onDeleteService={deleteService}
-                    stations={state.stations}
-                    onAddStation={addStation}
-                    onUpdateStation={updateStation}
-                    onDeleteStation={deleteStation}
-                    printers={state.printers}
-                    onAddPrinter={addPrinter}
-                    onUpdatePrinter={updatePrinter}
-                    onDeletePrinter={deletePrinter}
-                    onToggleService={onToggleService}
-                  />
-                )}
+                 <AdminPanel 
+                  state={state}
+                  reset={resetSystem} 
+                  seed={seedDatabase}
+                  userRole={role} 
+                  users={state.users}
+                  onAddUser={addUser}
+                  onUpdateUser={updateUser}
+                  onDeleteUser={deleteUser}
+                  services={state.services}
+                  onAddService={addService}
+                  onUpdateService={updateService}
+                  onDeleteService={deleteService}
+                  stations={state.stations}
+                  onAddStation={addStation}
+                  onUpdateStation={updateStation}
+                  onDeleteStation={deleteStation}
+                  printers={state.printers}
+                  onAddPrinter={addPrinter}
+                  onUpdatePrinter={updatePrinter}
+                  onDeletePrinter={deletePrinter}
+                />
               </div>
             ) : <Navigate to="/" />
           } />

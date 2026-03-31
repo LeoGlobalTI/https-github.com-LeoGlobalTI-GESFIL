@@ -51,10 +51,6 @@ const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({ services,
     setIsModalOpen(false);
   };
 
-  const isServiceActive = (service: Service) => {
-    return service.active;
-  };
-
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="p-10 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50/30 gap-6">
@@ -74,7 +70,6 @@ const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({ services,
       <div className="p-10 flex-grow overflow-y-auto custom-scrollbar">
         <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
           {services.map(service => {
-            const activeByTime = isServiceActive(service);
             return (
               <div key={service.id} className="group relative bg-white rounded-[3rem] border border-slate-100 overflow-hidden hover:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.1)] transition-all duration-700 border-t-0">
                 <div className="h-4 w-full" style={{ backgroundColor: service.color }}></div>
@@ -89,11 +84,6 @@ const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({ services,
                         }`}>
                           {service.active ? 'Routing Activo' : 'Offline'}
                         </span>
-                        {service.active && !activeByTime && (
-                          <span className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-100">
-                            Fuera de Horario
-                          </span>
-                        )}
                       </div>
                   </div>
                  
@@ -113,7 +103,7 @@ const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({ services,
                        Parámetros
                     </button>
                     <button onClick={() => { setServiceToDelete(service); setShowDeleteModal(true); }} className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Desactivar
+                      Eliminar
                     </button>
                  </div>
                 </div>
@@ -132,8 +122,8 @@ const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({ services,
             setServiceToDelete(null);
           }
         }}
-        title="Desactivar Servicio"
-        message={`¿Estás seguro de que deseas desactivar el servicio "${serviceToDelete?.name}"?`}
+        title="Eliminar Servicio"
+        message={`¿Estás seguro de que deseas eliminar el servicio "${serviceToDelete?.name}"? Esta acción no se puede deshacer.`}
       />
 
       {isModalOpen && (

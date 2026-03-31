@@ -9,10 +9,9 @@ interface DashboardViewProps {
   tickets: Ticket[];
   services: Service[];
   stations: Station[];
-  onToggleService?: (id: string, active: boolean) => void;
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, stations, onToggleService }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, stations }) => {
   const [inspectingTicket, setInspectingTicket] = useState<Ticket | null>(null);
 
   const stats = useMemo(() => {

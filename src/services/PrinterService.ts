@@ -9,7 +9,7 @@ export class PrinterService {
     isPriority: boolean;
     date: string;
     time: string;
-  }) {
+  }, targetWindow?: Window | null) {
     try {
       if (printer.type === PrinterType.USB) {
         return await this.printUSB(printer, ticketData);
@@ -18,17 +18,17 @@ export class PrinterService {
           return await this.printNetwork(printer, ticketData);
         } catch (netError: any) {
           console.warn("Fallo impresión de red, intentando fallback a navegador:", netError.message);
-          return this.printBrowser(ticketData);
+          return this.printBrowser(ticketData, targetWindow);
         }
       } else if (printer.type === PrinterType.BRIDGE) {
         try {
           return await this.printBridge(printer, ticketData);
         } catch (bridgeError: any) {
           console.warn("Fallo impresión por Bridge, intentando fallback a navegador:", bridgeError.message);
-          return this.printBrowser(ticketData);
+          return this.printBrowser(ticketData, targetWindow);
         }
       } else if (printer.type === PrinterType.BROWSER) {
-        return this.printBrowser(ticketData);
+        return this.printBrowser(ticketData, targetWindow);
       }
     } catch (error: any) {
       console.error("Error en printTicket:", error);
@@ -43,7 +43,7 @@ export class PrinterService {
 
       if ((printer.type === PrinterType.USB || printer.type === PrinterType.BRIDGE) && isAccessDenied) {
         console.warn("Fallo impresión física, intentando fallback a navegador...");
-        return this.printBrowser(ticketData);
+        return this.printBrowser(ticketData, targetWindow);
       }
       throw error;
     }
@@ -111,12 +111,11 @@ export class PrinterService {
           'Content-Type': 'text/plain; charset=utf-8'
         },
         body: commands,
-        mode: 'cors'
+        mode: 'no-cors' // Use no-cors to avoid CORS errors from local bridge servers
       });
 
-      if (!response.ok) {
-        throw new Error(`El Bridge respondió con error: ${response.status}`);
-      }
+      // With no-cors, the response is opaque, so response.ok is false and status is 0.
+      // We assume success if fetch didn't throw a network error.
       return true;
     } catch (e: any) {
       console.error("Error enviando a Bridge de impresión:", e);
@@ -129,7 +128,7 @@ export class PrinterService {
         if (isHttps && !isLocal && bridgeUrl.startsWith('http:')) {
           throw new Error(`BLOQUEO DE SEGURIDAD: El navegador bloquea la conexión a una IP privada (${bridgeUrl}) desde HTTPS.\n\nSOLUCIÓN:\n1. Haz clic en el candado de la URL.\n2. Ve a "Configuración del sitio".\n3. Cambia "Contenido no seguro" a "Permitir".\n4. Recarga la página.`);
         } else {
-          throw new Error(`ERROR DE CONEXIÓN: No se pudo encontrar el Bridge en ${bridgeUrl}.\n\n1. Verifique que 'node server.js' esté ejecutándose en su PC.\n2. Asegúrese de que la dirección IP/Puerto sea correcta.`);
+          throw new Error(`ERROR DE CONEXIÓN: No se pudo encontrar el Bridge en ${bridgeUrl}.\n\n1. Verifique que 'node server.js' esté ejecutándose en su PC.\n2. Asegúrese de que la dirección IP/Puerto sea correcta y que no haya problemas de CORS.`);
         }
       }
 
@@ -137,8 +136,8 @@ export class PrinterService {
     }
   }
 
-  private static printBrowser(data: any) {
-    const printWindow = window.open('', '_blank', 'width=300,height=450');
+  private static printBrowser(data: any, targetWindow?: Window | null) {
+    const printWindow = targetWindow || window.open('', '_blank', 'width=300,height=450');
     if (!printWindow) {
       alert("La ventana de impresión fue bloqueada por el navegador. Por favor, permita las ventanas emergentes para este sitio.");
       return false;

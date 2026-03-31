@@ -277,7 +277,14 @@ const StaffView: React.FC<StaffViewProps> = ({
                         <p className="text-indigo-600 font-black uppercase tracking-[0.2em] text-xs">Paciente Notificado en Pantalla</p>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-lg mx-auto w-full">
+                      <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-2xl mx-auto w-full">
+                        <button 
+                          onClick={() => handleStatusUpdate(activeTicket.id, TicketStatus.CALLING, station.id)}
+                          disabled={isProcessing}
+                          className="flex-1 py-6 bg-indigo-50 text-indigo-600 font-black rounded-3xl border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50 transition-all text-[11px] uppercase tracking-widest"
+                        >
+                          Volver a Llamar
+                        </button>
                         <button 
                           onClick={() => handleStatusUpdate(activeTicket.id, TicketStatus.ATTENDING, station.id)}
                           disabled={isProcessing}
@@ -288,7 +295,7 @@ const StaffView: React.FC<StaffViewProps> = ({
                         <button 
                           onClick={() => handleStatusUpdate(activeTicket.id, TicketStatus.CANCELLED, station.id)}
                           disabled={isProcessing}
-                          className="flex-1 py-6 bg-rose-50 text-rose-600 font-black rounded-3xl border border-rose-100 disabled:opacity-50 transition-all text-[11px] uppercase tracking-widest"
+                          className="flex-1 py-6 bg-rose-50 text-rose-600 font-black rounded-3xl border border-rose-100 hover:bg-rose-100 disabled:opacity-50 transition-all text-[11px] uppercase tracking-widest"
                         >
                           No se presentó
                         </button>
