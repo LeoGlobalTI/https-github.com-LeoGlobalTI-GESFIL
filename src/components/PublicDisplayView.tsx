@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Ticket, Station, TicketStatus, Service } from '@/types';
 
 interface PublicDisplayViewProps {
@@ -9,11 +9,32 @@ interface PublicDisplayViewProps {
 
 const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations, services }) => {
   const [now, setNow] = useState(new Date());
+  const lastCalledIdRef = useRef<string | null>(null);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const callingTicket = tickets.find(t => t.status === TicketStatus.CALLING);
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (callingTicket) {
+        lastCalledIdRef.current = callingTicket.id;
+      }
+      return;
+    }
+
+    if (callingTicket && callingTicket.id !== lastCalledIdRef.current) {
+      lastCalledIdRef.current = callingTicket.id;
+      // Play a pleasant chime sound
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(e => console.error("Audio play failed:", e));
+    }
+  }, [tickets]);
 
   const activeCalls = useMemo(() => 
     tickets
@@ -29,7 +50,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
     tickets
       .filter(t => t.status === TicketStatus.WAITING)
       .sort((a, b) => a.createdAt - b.createdAt)
-      .slice(0, 8),
+      .slice(0, 10),
   [tickets]);
 
   return (
@@ -120,7 +141,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
                 </span>
              </div>
 
-             <div className="flex-grow space-y-3 mb-12 overflow-hidden">
+             <div className="flex-grow space-y-3 overflow-hidden">
                {waitingList.length > 0 ? (
                  waitingList.map((t, idx) => {
                    const service = services.find(s => s.id === t.serviceId);
@@ -139,15 +160,6 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
                     Sin turnos pendientes
                  </div>
                )}
-             </div>
-
-             <div className="p-8 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] shadow-2xl shadow-indigo-950 border border-indigo-500 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-10 transition-transform group-hover:scale-125">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                </div>
-                <div className="relative z-10">
-                  <p className="text-indigo-100 text-sm font-bold leading-relaxed">Prepare su documento de identidad y espere a ser llamado en pantalla.</p>
-                </div>
              </div>
            </div>
         </div>
