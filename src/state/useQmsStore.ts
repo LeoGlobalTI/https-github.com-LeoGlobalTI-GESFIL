@@ -81,7 +81,7 @@ export const useQmsStore = () => {
     services: [],
     stations: [],
     tickets: [],
-    nextSequence: {},
+    nextSequence: { sequences: {} },
     users: [],
     currentUser: null,
     printers: []
@@ -125,7 +125,7 @@ export const useQmsStore = () => {
         tickets: (tickets || []).map(mapTicketFromDb),
         users: (users || []).map(mapUserFromDb),
         printers: (printers || []).map(mapPrinterFromDb),
-        nextSequence: config?.value || {}
+        nextSequence: config?.value || { sequences: {} }
       }));
       setLoading(false);
     };
@@ -262,12 +262,18 @@ export const useQmsStore = () => {
     if (!service) return null;
 
     let currentSeq = 1;
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    today.setHours(0, 0, 0, 0);
+
+    // Prepare local config with daily reset logic
+    let config = { ...state.nextSequence };
+    if (config.lastResetDate !== todayStr) {
+      config = { lastResetDate: todayStr, sequences: {} };
+    }
+    if (!config.sequences) config.sequences = {};
 
     try {
-      // Get today's start in ISO format
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
       // Count tickets for this service today to determine the next sequence
       const { count, error } = await supabase
         .from('tickets')
@@ -279,46 +285,28 @@ export const useQmsStore = () => {
         currentSeq = count + 1;
       } else {
         console.warn('Count failed, using fallback sequence generation', error);
-        // Fallback: Use local state
-        const todayStr = today.toISOString().split('T')[0];
-        let config = { ...state.nextSequence };
-        
-        if (config.lastResetDate !== todayStr) {
-          config = { lastResetDate: todayStr, sequences: {} };
-        }
-        
-        if (!config.sequences) config.sequences = {};
-        
         currentSeq = (config.sequences[serviceId] || 0) + 1;
-        config.sequences[serviceId] = currentSeq;
-        
-        // Update local state immediately for fallback
-        setState(prev => ({
-          ...prev,
-          nextSequence: config
-        }));
       }
     } catch (err) {
       console.error('Error during sequence increment:', err);
-      // If everything fails, use local state as a last resort
-      const todayStr = new Date().toISOString().split('T')[0];
-      let config = Object.keys(state.nextSequence).length > 0 ? { ...state.nextSequence } : { lastResetDate: todayStr, sequences: {} };
-      if (config.lastResetDate !== todayStr) {
-        config = { lastResetDate: todayStr, sequences: {} };
-      }
-      if (!config.sequences) config.sequences = {};
       currentSeq = (config.sequences[serviceId] || 0) + 1;
-      if (isNaN(currentSeq)) currentSeq = 1;
-      config.sequences[serviceId] = currentSeq;
-      
-      // Update local state immediately
-      setState(prev => ({
-        ...prev,
-        nextSequence: config
-      }));
     }
 
-    const finalSeq = isNaN(currentSeq) ? 1 : currentSeq;
+    if (isNaN(currentSeq)) currentSeq = 1;
+    config.sequences[serviceId] = currentSeq;
+
+    // Update local state immediately
+    setState(prev => ({
+      ...prev,
+      nextSequence: config
+    }));
+
+    // Persist the sequence config to Supabase
+    supabase.from('system_config').upsert({ key: 'nextSequence', value: config }).then(({error}) => {
+      if (error) console.error("Failed to persist nextSequence", error);
+    });
+
+    const finalSeq = currentSeq;
     const code = `${service.prefix}${String(finalSeq).padStart(4, '0')}`;
 
     const { data, error } = await supabase.from('tickets').insert({
@@ -514,6 +502,8 @@ export const useQmsStore = () => {
         nextSequence: { lastResetDate: today, sequences: {} }
       }));
       
+      await supabase.from('system_config').upsert({ key: 'nextSequence', value: { lastResetDate: today, sequences: {} } });
+      
       alert('Sistema purgado correctamente. Los turnos han sido reiniciados.');
     } catch (error) {
       console.error('Error during system purge:', error);
@@ -574,7 +564,8 @@ export const useQmsStore = () => {
         assigned_station_id: u.assignedStationId || null
       })));
 
-      await supabase.from('system_config').upsert({ key: 'nextSequence', value: {} });
+      const today = new Date().toISOString().split('T')[0];
+      await supabase.from('system_config').upsert({ key: 'nextSequence', value: { lastResetDate: today, sequences: {} } });
 
       alert('Base de datos inicializada con éxito en Supabase.');
     } catch (error) {

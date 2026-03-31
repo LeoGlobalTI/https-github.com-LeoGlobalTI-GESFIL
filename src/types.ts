@@ -85,7 +85,10 @@ export interface QmsState {
   services: Service[];
   stations: Station[];
   tickets: Ticket[];
-  nextSequence: Record<string, number>;
+  nextSequence: {
+    lastResetDate?: string;
+    sequences: Record<string, number>;
+  };
   users: User[];
   currentUser: User | null;
   printers: Printer[];
