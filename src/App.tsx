@@ -91,7 +91,7 @@ const AdminPanel: React.FC<{
   onAddPrinter: (p: Omit<Printer, 'id'>) => void,
   onUpdatePrinter: (id: string, p: Partial<Printer>) => void,
   onDeletePrinter: (id: string) => void,
-  updateDisplaySettings: (settings: { notificationSound: string; notificationVolume?: number }) => void
+  updateDisplaySettings: (settings: { notificationSound: string; notificationVolume?: number; notificationDuration?: number }) => void
 }> = ({ state, reset, seed, userRole, users, onAddUser, onUpdateUser, onDeleteUser, services, onAddService, onUpdateService, onDeleteService, stations, onAddStation, onUpdateStation, onDeleteStation, printers, onAddPrinter, onUpdatePrinter, onDeletePrinter, updateDisplaySettings }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'services' | 'stations' | 'analytics' | 'printers' | 'settings'>('users');
   const [showResetModal, setShowResetModal] = useState(false);
@@ -272,7 +272,7 @@ const AdminPanel: React.FC<{
                           type="button"
                           onClick={(e) => {
                             e.preventDefault();
-                            import('@/lib/audio').then(m => m.playNotificationSound(sound, state.displaySettings?.notificationVolume ?? 1));
+                            import('@/lib/audio').then(m => m.playNotificationSound(sound, state.displaySettings?.notificationVolume ?? 1, state.displaySettings?.notificationDuration ?? 1));
                           }}
                           className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-indigo-100 hover:text-indigo-600 transition-colors"
                         >
@@ -296,6 +296,25 @@ const AdminPanel: React.FC<{
                         className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                       />
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-8">
+                    <h4 className="text-xl font-bold text-slate-800 mb-4">Duración de Notificación</h4>
+                    <div className="flex items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                      <input 
+                        type="range" 
+                        min="0.5" 
+                        max="3" 
+                        step="0.1" 
+                        value={state.displaySettings?.notificationDuration ?? 1}
+                        onChange={(e) => updateDisplaySettings({ ...state.displaySettings, notificationDuration: parseFloat(e.target.value) })}
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <span className="font-mono text-sm font-bold text-slate-500 w-12 text-right">
+                        {(state.displaySettings?.notificationDuration ?? 1).toFixed(1)}x
+                      </span>
                     </div>
                   </div>
                 </div>

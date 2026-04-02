@@ -7,7 +7,7 @@ interface PublicDisplayViewProps {
   tickets: Ticket[];
   stations: Station[];
   services: Service[];
-  displaySettings?: { notificationSound: string; notificationVolume?: number };
+  displaySettings?: { notificationSound: string; notificationVolume?: number; notificationDuration?: number };
 }
 
 const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations, services, displaySettings }) => {
@@ -40,11 +40,12 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
         setLastRecalledCount(currentRecalledCount);
         playNotificationSound(
           displaySettings?.notificationSound || 'timbre',
-          displaySettings?.notificationVolume ?? 1
+          displaySettings?.notificationVolume ?? 1,
+          displaySettings?.notificationDuration ?? 1
         );
       }
     }
-  }, [activeCalls, lastCalledTicketId, lastRecalledCount, displaySettings?.notificationSound, displaySettings?.notificationVolume]);
+  }, [activeCalls, lastCalledTicketId, lastRecalledCount, displaySettings?.notificationSound, displaySettings?.notificationVolume, displaySettings?.notificationDuration]);
 
   const waitingList = useMemo(() => 
     tickets

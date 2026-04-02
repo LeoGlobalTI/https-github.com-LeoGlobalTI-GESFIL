@@ -532,7 +532,7 @@ export const useQmsStore = () => {
     return true;
   }, []);
 
-  const updateDisplaySettings = useCallback(async (settings: { notificationSound: string; notificationVolume?: number }) => {
+  const updateDisplaySettings = useCallback(async (settings: { notificationSound: string; notificationVolume?: number; notificationDuration?: number }) => {
     setState(prev => ({ ...prev, displaySettings: settings }));
     await supabase.from('system_config').upsert({ key: 'displaySettings', value: settings });
   }, []);
