@@ -60,7 +60,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
 
     if (dateRange === 'today') {
       setHistoricalTickets(tickets);
-      return;
+      return () => { ignore = true; };
     }
     
     let start = new Date();
@@ -73,7 +73,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
       start.setDate(start.getDate() - 30);
       start.setHours(0, 0, 0, 0);
     } else if (dateRange === 'custom') {
-      if (!customStartDate || !customEndDate) return;
+      if (!customStartDate || !customEndDate) return () => { ignore = true; };
       start = new Date(customStartDate);
       start.setHours(0, 0, 0, 0);
       end = new Date(customEndDate);
@@ -139,7 +139,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
 
     const ticketsByDateMap: Record<string, number> = {};
     filteredTickets.forEach(t => {
-      const dateStr = new Date(t.createdAt).toLocaleDateString();
+      const d = new Date(t.createdAt);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       ticketsByDateMap[dateStr] = (ticketsByDateMap[dateStr] || 0) + 1;
     });
     

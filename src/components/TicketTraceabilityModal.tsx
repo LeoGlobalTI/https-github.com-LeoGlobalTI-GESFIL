@@ -14,7 +14,7 @@ const TicketTraceabilityModal: React.FC<TicketTraceabilityModalProps> = ({ ticke
   
   const getDuration = (start?: number, end?: number) => {
     if (!start || !end) return null;
-    const diff = Math.floor((end - start) / 1000);
+    const diff = Math.max(0, Math.floor((end - start) / 1000));
     const mins = Math.floor(diff / 60);
     const secs = diff % 60;
     return `${mins}m ${secs}s`;

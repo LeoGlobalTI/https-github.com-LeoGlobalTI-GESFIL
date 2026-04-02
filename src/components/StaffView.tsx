@@ -9,7 +9,7 @@ interface StaffViewProps {
   tickets: Ticket[];
   services: Service[];
   userRole?: UserRole;
-  isServiceActive: (service: Service) => boolean;
+  isServiceActive: (service: Service, station?: Station) => boolean;
   onStatusUpdate: (ticketId: string, status: TicketStatus, stationId: string) => void;
   onSelectStation?: (stationId: string) => void;
 }
@@ -97,9 +97,11 @@ const StaffView: React.FC<StaffViewProps> = ({
             <div className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-y-auto pb-2 lg:pb-0 pr-1.5 custom-scrollbar flex-grow no-scrollbar lg:scrollbar">
               {allStations.map(s => {
                 const isActive = station && s.id === station.id;
-                const stationWaitingCount = tickets.filter(t => 
-                  t.status === TicketStatus.WAITING && s.serviceIds.includes(t.serviceId)
-                ).length;
+                const stationWaitingCount = tickets.filter(t => {
+                  if (t.status !== TicketStatus.WAITING || !s.serviceIds.includes(t.serviceId)) return false;
+                  const service = services.find(srv => srv.id === t.serviceId);
+                  return service && isServiceActive(service, s);
+                }).length;
                 const activeOnStation = tickets.find(t => 
                   t.stationId === s.id && (t.status === TicketStatus.CALLING || t.status === TicketStatus.ATTENDING)
                 );

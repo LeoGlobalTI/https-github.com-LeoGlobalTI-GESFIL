@@ -87,7 +87,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
           hour: '2-digit', 
           minute: '2-digit', 
           hour12: true 
-        }).toLowerCase().replace(' ', ' p. m.');
+        }).toLowerCase();
 
         const ticketData = {
           code: ticket.code,

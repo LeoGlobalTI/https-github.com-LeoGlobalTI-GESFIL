@@ -341,7 +341,7 @@ const StaffController: React.FC<{
   tickets: Ticket[], 
   services: Service[], 
   stations: Station[],
-  isServiceActive: (service: Service) => boolean,
+  isServiceActive: (service: Service, station?: Station) => boolean,
   updateTicketStatus: (t: string, s: TicketStatus, st: string) => void 
 }> = ({ user, tickets, services, stations, isServiceActive, updateTicketStatus }) => {
   const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN;
@@ -367,7 +367,7 @@ const StaffController: React.FC<{
     }
   }, [isAdmin]);
 
-  if (!activeStationId || !activeStation) {
+  if (!activeStationId && !isAdmin) {
     return (
       <div className="h-[500px] flex flex-col items-center justify-center text-slate-400 max-w-lg text-center mx-auto space-y-6 animate-fade-in">
         <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center text-5xl grayscale opacity-50">🔒</div>
@@ -379,7 +379,7 @@ const StaffController: React.FC<{
 
   return (
     <StaffView 
-      station={activeStation} 
+      station={activeStation || null} 
       allStations={isAdmin ? stations.filter(s => s.active) : stations.filter(s => s.id === user.assignedStationId && s.active)}
       tickets={tickets} 
       services={services} 

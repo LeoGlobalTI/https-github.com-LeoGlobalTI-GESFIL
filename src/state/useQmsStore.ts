@@ -315,16 +315,18 @@ export const useQmsStore = () => {
       updates.ended_at = new Date().toISOString();
     }
 
-    const { error } = await supabase.from('tickets')
+    const { data, error } = await supabase.from('tickets')
       .update(updates)
       .eq('id', ticketId)
-      .eq('status', currentStatus); // Atomic update: ensure status hasn't changed
+      .eq('status', currentStatus) // Atomic update: ensure status hasn't changed
+      .select()
+      .single();
       
     if (error) {
       console.error('Error updating ticket status:', error);
       // If error is related to condition not met, it means someone else updated it
       if (error.code === 'PGRST116') {
-        alert('El ticket ya ha sido actualizado por otro usuario.');
+        alert('El ticket ya ha sido actualizado por otro usuario o no existe.');
       }
     }
   }, [state.tickets, state.stations]);
@@ -494,13 +496,17 @@ export const useQmsStore = () => {
     setLoading(true);
     try {
       // Clear existing data
-      await supabase.from('tickets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('stations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('services').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('users').delete().neq('username', 'superadmin');
+      const { error: err1 } = await supabase.from('tickets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (err1) throw err1;
+      const { error: err2 } = await supabase.from('stations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (err2) throw err2;
+      const { error: err3 } = await supabase.from('services').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (err3) throw err3;
+      const { error: err4 } = await supabase.from('users').delete().neq('username', 'superadmin');
+      if (err4) throw err4;
 
       // Insert initial data
-      await supabase.from('services').insert(INITIAL_SERVICES.map(s => ({
+      const { error: err5 } = await supabase.from('services').insert(INITIAL_SERVICES.map(s => ({
         id: s.id,
         name: s.name,
         prefix: s.prefix,
@@ -508,17 +514,19 @@ export const useQmsStore = () => {
         description: s.description,
         active: s.active
       })));
+      if (err5) throw err5;
 
-      await supabase.from('stations').insert(INITIAL_STATIONS.map(s => ({
+      const { error: err6 } = await supabase.from('stations').insert(INITIAL_STATIONS.map(s => ({
         id: s.id,
         name: s.name,
         operator_name: s.operatorName,
         service_ids: s.serviceIds,
         active: s.active
       })));
+      if (err6) throw err6;
 
       // Default users
-      await supabase.from('users').upsert(DEFAULT_USERS.map(u => ({
+      const { error: err7 } = await supabase.from('users').upsert(DEFAULT_USERS.map(u => ({
         id: u.id,
         username: u.username,
         password: u.password,
@@ -526,9 +534,11 @@ export const useQmsStore = () => {
         role: u.role,
         assigned_station_id: u.assignedStationId || null
       })));
+      if (err7) throw err7;
 
       const today = new Date().toISOString().split('T')[0];
-      await supabase.from('system_config').upsert({ key: 'nextSequence', value: { lastResetDate: today, sequences: {} } });
+      const { error: err8 } = await supabase.from('system_config').upsert({ key: 'nextSequence', value: { lastResetDate: today, sequences: {} } });
+      if (err8) throw err8;
 
       alert('Base de datos inicializada con éxito en Supabase.');
     } catch (error) {

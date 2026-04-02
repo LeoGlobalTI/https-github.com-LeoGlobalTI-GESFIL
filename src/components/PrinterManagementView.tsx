@@ -95,7 +95,7 @@ const PrinterManagementView: React.FC<PrinterManagementViewProps> = ({ printers,
         hour: '2-digit', 
         minute: '2-digit', 
         hour12: true 
-      }).toLowerCase().replace(' ', ' p. m.');
+      }).toLowerCase();
 
       await PrinterService.printTicket(printer, {
         code: 'TEST-000',
