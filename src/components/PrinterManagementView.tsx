@@ -248,13 +248,6 @@ app.listen(PUERTO, '0.0.0.0', () => {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={downloadBridgeCode}
-            className="px-5 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-100"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Descargar Bridge.js
-          </button>
-          <button
             onClick={() => {
               setNewPrinter({
                 name: 'Bridge Local',
@@ -379,35 +372,6 @@ app.listen(PUERTO, '0.0.0.0', () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Connection Help Card */}
-        <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white space-y-4 shadow-xl shadow-indigo-200 flex flex-col justify-between">
-          <div className="space-y-2">
-            <h3 className="text-lg font-black leading-tight">¿No ves tu impresora?</h3>
-            <p className="text-indigo-100 text-xs font-medium leading-relaxed">
-              Por seguridad, los navegadores no pueden ver todas tus impresoras automáticamente. 
-              Debes "Vincularlas" primero usando el botón <strong>Buscar USB</strong>.
-            </p>
-          </div>
-          <ul className="space-y-2">
-            <li className="flex items-center gap-2 text-[10px] font-bold text-indigo-200">
-              <div className="w-1.5 h-1.5 bg-white rounded-full" />
-              Usa Chrome o Edge (Windows/Android)
-            </li>
-            <li className="flex items-center gap-2 text-[10px] font-bold text-indigo-200">
-              <div className="w-1.5 h-1.5 bg-white rounded-full" />
-              Conecta el cable USB y enciende la impresora
-            </li>
-            <li className="flex items-center gap-2 text-[10px] font-bold text-indigo-200">
-              <div className="w-1.5 h-1.5 bg-white rounded-full" />
-              Si recibes "Access Denied", usa Zadig (WinUSB) o cambia el tipo a "Navegador"
-            </li>
-            <li className="flex items-center gap-2 text-[10px] font-bold text-indigo-200">
-              <div className="w-1.5 h-1.5 bg-white rounded-full" />
-              El modo "Navegador" es el más compatible y no requiere drivers especiales
-            </li>
-          </ul>
-        </div>
-
         {printers.map(printer => (
           <div key={printer.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
             <div className="flex items-start justify-between mb-6">
