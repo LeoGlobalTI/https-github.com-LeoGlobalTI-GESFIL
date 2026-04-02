@@ -4,6 +4,7 @@ import { Ticket, Service, Station, TicketStatus } from '@/types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, PieChart, Pie, Legend } from 'recharts';
 import TicketTraceabilityModal from './TicketTraceabilityModal';
 import { supabase } from '@/lib/supabase';
+import { mapTicketFromDb } from '@/utils/mappers';
 
 interface DashboardViewProps {
   tickets: Ticket[];
@@ -21,47 +22,42 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
   const [historicalTickets, setHistoricalTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Initialize selected services once, or when new services are added
   useEffect(() => {
-    setSelectedServices(services.map(s => s.id));
-  }, [services]);
-
-  const fetchHistoricalTickets = async (start: Date, end: Date) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('*')
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString());
-        
-      if (error) throw error;
-      
-      if (data) {
-        const mapped = data.map(t => ({
-          id: t.id,
-          code: t.code,
-          serviceId: t.service_id,
-          status: (t.status || '').toUpperCase() as TicketStatus,
-          createdAt: new Date(t.created_at).getTime(),
-          calledAt: t.called_at ? new Date(t.called_at).getTime() : undefined,
-          startedAt: t.started_at ? new Date(t.started_at).getTime() : undefined,
-          endedAt: t.ended_at ? new Date(t.ended_at).getTime() : undefined,
-          stationId: t.station_id,
-          metadata: {
-            recalledCount: t.recalled_count || 0,
-            priority: t.priority || false
-          }
-        }));
-        setHistoricalTickets(mapped);
+    setSelectedServices(prev => {
+      const newServiceIds = services.map(s => s.id);
+      // Only update if the number of services has changed to avoid resetting user filters
+      if (prev.length === 0 || prev.length !== newServiceIds.length) {
+        return newServiceIds;
       }
-    } catch (err) {
-      console.error("Error fetching historical tickets", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return prev;
+    });
+  }, [services.length]);
 
   useEffect(() => {
+    let ignore = false;
+
+    const fetchHistoricalTickets = async (start: Date, end: Date) => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('tickets')
+          .select('*')
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString());
+          
+        if (error) throw error;
+        
+        if (data && !ignore) {
+          setHistoricalTickets(data.map(mapTicketFromDb));
+        }
+      } catch (err) {
+        if (!ignore) console.error("Error fetching historical tickets", err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+
     if (dateRange === 'today') {
       setHistoricalTickets(tickets);
       return;
@@ -85,6 +81,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
     }
     
     fetchHistoricalTickets(start, end);
+
+    return () => {
+      ignore = true;
+    };
   }, [dateRange, customStartDate, customEndDate, tickets]);
 
   const filteredTickets = useMemo(() => {

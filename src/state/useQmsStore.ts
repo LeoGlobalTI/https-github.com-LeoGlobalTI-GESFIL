@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Ticket, TicketStatus, Service, Station, QmsState, User, UserRole, Printer, PrinterType } from '@/types';
 import { INITIAL_SERVICES, INITIAL_STATIONS } from '@/constants';
 import { supabase } from '@/services/supabase';
+import { mapServiceFromDb, mapStationFromDb, mapTicketFromDb, mapUserFromDb, mapPrinterFromDb } from '@/utils/mappers';
 // Removed formatTimeHHMM as it is no longer used for service status checks
 
 const DEFAULT_USERS: User[] = [
@@ -12,69 +13,6 @@ const DEFAULT_USERS: User[] = [
   { id: '00000000-0000-0000-0000-000000000024', username: 'totem', password: '123', name: 'Tótem Entrada', role: UserRole.TOTEM },
   { id: '00000000-0000-0000-0000-000000000025', username: 'live', password: '123', name: 'Display Live', role: UserRole.DISPLAY },
 ];
-
-// Mapping helpers
-const mapServiceFromDb = (s: any): Service => ({
-  id: s.id,
-  name: s.name,
-  prefix: s.prefix,
-  color: s.color,
-  description: s.description || '',
-  active: s.active
-});
-
-const mapStationFromDb = (s: any): Station => ({
-  id: s.id,
-  name: s.name,
-  operatorName: s.operator_name || '',
-  serviceIds: s.service_ids || [],
-  serviceConfigs: s.service_configs || {},
-  active: s.active
-});
-
-const mapTicketFromDb = (t: any): Ticket => {
-  const createdAtDate = new Date(t.created_at).getTime();
-  const calledAtDate = t.called_at ? new Date(t.called_at).getTime() : undefined;
-  const startedAtDate = t.started_at ? new Date(t.started_at).getTime() : undefined;
-  const endedAtDate = t.ended_at ? new Date(t.ended_at).getTime() : undefined;
-
-  return {
-    id: t.id,
-    code: t.code,
-    serviceId: t.service_id,
-    status: (t.status || '').toUpperCase() as TicketStatus,
-    createdAt: isNaN(createdAtDate) ? Date.now() : createdAtDate,
-    calledAt: (calledAtDate !== undefined && !isNaN(calledAtDate)) ? calledAtDate : undefined,
-    startedAt: (startedAtDate !== undefined && !isNaN(startedAtDate)) ? startedAtDate : undefined,
-    endedAt: (endedAtDate !== undefined && !isNaN(endedAtDate)) ? endedAtDate : undefined,
-    stationId: t.station_id,
-    metadata: {
-      recalledCount: t.recalled_count || 0,
-      priority: t.priority || false
-    }
-  };
-};
-
-const mapUserFromDb = (u: any): User => ({
-  id: u.id,
-  username: u.username,
-  password: u.password,
-  name: u.name,
-  role: (u.role || '').toUpperCase() as UserRole,
-  assignedStationId: u.assigned_station_id
-});
-
-const mapPrinterFromDb = (p: any): Printer => {
-  const parsedPort = p.port ? parseInt(p.port) : undefined;
-  return {
-    id: p.id,
-    name: p.name,
-    type: p.type as PrinterType,
-    address: p.address,
-    port: (typeof p.port === 'number' && !isNaN(p.port)) ? p.port : (parsedPort && !isNaN(parsedPort) ? parsedPort : undefined),
-    active: p.active
-  };
-};
 
 export const useQmsStore = () => {
   const [state, setState] = useState<QmsState>({
@@ -104,12 +42,12 @@ export const useQmsStore = () => {
         today.setHours(0, 0, 0, 0);
 
         const [
-          { data: services },
-          { data: stations },
-          { data: tickets },
-          { data: users },
-          { data: printers },
-          { data: configs }
+          { data: services, error: errServices },
+          { data: stations, error: errStations },
+          { data: tickets, error: errTickets },
+          { data: users, error: errUsers },
+          { data: printers, error: errPrinters },
+          { data: configs, error: errConfigs }
         ] = await Promise.all([
           supabase.from('services').select('*'),
           supabase.from('stations').select('*'),
@@ -118,6 +56,10 @@ export const useQmsStore = () => {
           supabase.from('printers').select('*'),
           supabase.from('system_config').select('*').in('key', ['nextSequence', 'displaySettings'])
         ]);
+
+        if (errServices || errStations || errTickets || errUsers || errPrinters || errConfigs) {
+          console.error("Error fetching initial data:", { errServices, errStations, errTickets, errUsers, errPrinters, errConfigs });
+        }
 
       const nextSeqConfig = configs?.find(c => c.key === 'nextSequence');
       const displayConfig = configs?.find(c => c.key === 'displaySettings');
@@ -388,13 +330,14 @@ export const useQmsStore = () => {
   }, [state.tickets, state.stations]);
 
   const addUser = useCallback(async (u: Omit<User, 'id'>) => {
-    await supabase.from('users').insert({
+    const { error } = await supabase.from('users').insert({
       username: u.username,
       password: u.password,
       name: u.name,
       role: u.role,
       assigned_station_id: u.assignedStationId || null
     });
+    if (error) console.error("Error adding user:", error);
   }, []);
 
   const updateUser = useCallback(async (id: string, u: Partial<User>) => {
@@ -411,32 +354,37 @@ export const useQmsStore = () => {
     delete updates.assignedStationId;
     delete updates.id;
 
-    await supabase.from('users').update(updates).eq('id', id);
+    const { error } = await supabase.from('users').update(updates).eq('id', id);
+    if (error) console.error("Error updating user:", error);
   }, []);
 
   const deleteUser = useCallback(async (id: string) => {
-    await supabase.from('users').delete().eq('id', id);
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (error) console.error("Error deleting user:", error);
   }, []);
 
   const addService = useCallback(async (s: Omit<Service, 'id'>) => {
-    await supabase.from('services').insert({
+    const { error } = await supabase.from('services').insert({
       name: s.name,
       prefix: s.prefix,
       color: s.color,
       description: s.description,
       active: s.active
     });
+    if (error) console.error("Error adding service:", error);
   }, []);
 
   const updateService = useCallback(async (id: string, s: Partial<Service>) => {
     const updates: any = { ...s };
     delete updates.id;
 
-    await supabase.from('services').update(updates).eq('id', id);
+    const { error } = await supabase.from('services').update(updates).eq('id', id);
+    if (error) console.error("Error updating service:", error);
   }, []);
 
   const deleteService = useCallback(async (id: string) => {
-    await supabase.from('services').delete().eq('id', id);
+    const { error } = await supabase.from('services').delete().eq('id', id);
+    if (error) console.error("Error deleting service:", error);
   }, []);
 
   const addStation = useCallback(async (s: Omit<Station, 'id'>) => {
@@ -469,21 +417,25 @@ export const useQmsStore = () => {
   }, []);
 
   const deleteStation = useCallback(async (id: string) => {
-    await supabase.from('stations').delete().eq('id', id);
+    const { error } = await supabase.from('stations').delete().eq('id', id);
+    if (error) console.error("Error deleting station:", error);
   }, []);
 
   const addPrinter = useCallback(async (pr: Omit<Printer, 'id'>) => {
-    await supabase.from('printers').insert(pr);
+    const { error } = await supabase.from('printers').insert(pr);
+    if (error) console.error("Error adding printer:", error);
   }, []);
 
   const updatePrinter = useCallback(async (id: string, pr: Partial<Printer>) => {
     const updates: any = { ...pr };
     delete updates.id;
-    await supabase.from('printers').update(updates).eq('id', id);
+    const { error } = await supabase.from('printers').update(updates).eq('id', id);
+    if (error) console.error("Error updating printer:", error);
   }, []);
 
   const deletePrinter = useCallback(async (id: string) => {
-    await supabase.from('printers').delete().eq('id', id);
+    const { error } = await supabase.from('printers').delete().eq('id', id);
+    if (error) console.error("Error deleting printer:", error);
   }, []);
 
   const resetSystem = useCallback(async () => {
@@ -534,7 +486,8 @@ export const useQmsStore = () => {
 
   const updateDisplaySettings = useCallback(async (settings: { notificationSound: string; notificationVolume?: number; notificationDuration?: number }) => {
     setState(prev => ({ ...prev, displaySettings: settings }));
-    await supabase.from('system_config').upsert({ key: 'displaySettings', value: settings });
+    const { error } = await supabase.from('system_config').upsert({ key: 'displaySettings', value: settings });
+    if (error) console.error("Error updating display settings:", error);
   }, []);
 
   const seedDatabase = useCallback(async () => {
