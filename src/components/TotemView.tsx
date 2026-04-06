@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Service, Printer, PrinterType } from '@/types';
 import { PrinterService } from '@/services/PrinterService';
+import { useQmsStore } from '@/state/useQmsStore';
 
 interface TotemViewProps {
   services: Service[];
@@ -18,11 +19,22 @@ interface IssuedTicketInfo {
 }
 
 const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTicket, printers }) => {
+  const { state, isServiceActive: checkActive } = useQmsStore();
   const [issuedTicket, setIssuedTicket] = useState<IssuedTicketInfo | null>(null);
   const [isPriority, setIsPriority] = useState<boolean | null>(null);
   const [isIssuing, setIsIssuing] = useState(false);
   const [showDock, setShowDock] = useState(false);
   const [clickCount, setClickCount] = useState(0);
+
+  const availableServices = useMemo(() => {
+    return services.filter(service => 
+      state.stations.some(station => 
+        station.active && 
+        station.serviceIds.includes(service.id) && 
+        checkActive(service, station)
+      )
+    );
+  }, [services, state.stations, checkActive]);
 
   useEffect(() => {
     if (clickCount >= 5) {
@@ -317,7 +329,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
-        {services.map((service, idx) => (
+        {availableServices.map((service, idx) => (
           <button
             key={service.id}
             onClick={() => handleIssue(service)}
