@@ -160,14 +160,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
   }, [filteredTickets, services, selectedServices]);
 
   const exportToCSV = () => {
-    const headers = ['Código', 'Servicio', 'Estado', 'Fecha Creación'];
+    const headers = ['Código', 'Servicio', 'Estado', 'Fecha Creación', 'Estación ID', 'Iniciado', 'Finalizado', 'Re-llamadas', 'Prioridad'];
     const csvContent = [
       headers.join(','),
       ...filteredTickets.map(t => [
         t.code,
         services.find(s => s.id === t.serviceId)?.name || 'N/A',
         t.status,
-        new Date(t.createdAt).toLocaleString()
+        new Date(t.createdAt).toLocaleString(),
+        t.stationId || 'N/A',
+        t.startedAt ? new Date(t.startedAt).toLocaleString() : 'N/A',
+        t.endedAt ? new Date(t.endedAt).toLocaleString() : 'N/A',
+        t.metadata?.recalledCount || 0,
+        t.metadata?.priority ? 'Sí' : 'No'
       ].join(','))
     ].join('\n');
     

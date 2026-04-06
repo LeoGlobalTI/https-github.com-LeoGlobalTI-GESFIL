@@ -17,7 +17,12 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
+    // Keep-alive: Trigger a minor state update to keep the tab active
+    const keepAlive = setInterval(() => console.log('Keep-alive ping'), 30000);
+    return () => {
+      clearInterval(timer);
+      clearInterval(keepAlive);
+    };
   }, []);
 
   const activeCalls = useMemo(() => 
