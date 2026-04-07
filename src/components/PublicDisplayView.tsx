@@ -17,11 +17,37 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
-    // Keep-alive: Trigger a minor state update to keep the tab active
-    const keepAlive = setInterval(() => console.log('Keep-alive ping'), 30000);
+    
+    let wakeLock: any = null;
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await (navigator as any).wakeLock.request('screen');
+          console.log('Display Wake Lock active');
+        }
+      } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    };
+
+    requestWakeLock();
+
+    // Keep-alive fallback
+    const keepAlive = setInterval(() => console.log('Display Keep-alive ping'), 30000);
+
+    const handleVisibilityChange = () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       clearInterval(timer);
       clearInterval(keepAlive);
+      if (wakeLock) wakeLock.release();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

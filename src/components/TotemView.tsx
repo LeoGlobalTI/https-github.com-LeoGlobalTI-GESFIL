@@ -48,6 +48,43 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     }
   }, [clickCount]);
 
+  // Keep-alive: Prevent screen from going to sleep
+  useEffect(() => {
+    let wakeLock: any = null;
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await (navigator as any).wakeLock.request('screen');
+          console.log('Wake Lock is active');
+        }
+      } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    };
+
+    requestWakeLock();
+
+    // Fallback: minor periodic update to keep tab active
+    const keepAlive = setInterval(() => {
+      console.log('Totem Keep-alive ping');
+    }, 30000);
+
+    const handleVisibilityChange = () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (wakeLock) wakeLock.release();
+      clearInterval(keepAlive);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const handleSecretClick = () => {
     setClickCount(prev => prev + 1);
   };
