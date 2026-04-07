@@ -137,7 +137,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
         const horaStr = now.toLocaleTimeString('es-CL', { 
           hour: '2-digit', 
           minute: '2-digit', 
-          hour12: true 
+          hour12: false 
         }).toLowerCase();
 
         const ticketData = {
@@ -271,7 +271,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
           </div>
 
           <div className="text-center space-y-2">
-            <p className="text-[12px] font-bold">{new Date().toLocaleDateString()} - {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <p className="text-[12px] font-bold">{new Date().toLocaleDateString()} - {new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
             <p className="text-[10px] leading-tight italic">Por favor, espere su turno en la sala de espera.</p>
           </div>
 

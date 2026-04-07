@@ -167,10 +167,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
         t.code,
         services.find(s => s.id === t.serviceId)?.name || 'N/A',
         t.status,
-        new Date(t.createdAt).toLocaleString(),
+        new Date(t.createdAt).toLocaleString('es-CL', { hour12: false }),
         t.stationId || 'N/A',
-        t.startedAt ? new Date(t.startedAt).toLocaleString() : 'N/A',
-        t.endedAt ? new Date(t.endedAt).toLocaleString() : 'N/A',
+        t.startedAt ? new Date(t.startedAt).toLocaleString('es-CL', { hour12: false }) : 'N/A',
+        t.endedAt ? new Date(t.endedAt).toLocaleString('es-CL', { hour12: false }) : 'N/A',
         t.metadata?.recalledCount || 0,
         t.metadata?.priority ? 'Sí' : 'No'
       ].join(','))
@@ -378,7 +378,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tickets, services, statio
                     <div key={t.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-all cursor-pointer" onClick={() => setInspectingTicket(t)}>
                       <div>
                           <p className="text-sm font-black text-white">{t.code}</p>
-                          <p className="text-[9px] text-slate-500 uppercase font-black">{new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString()}</p>
+                          <p className="text-[9px] text-slate-500 uppercase font-black">{new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString('es-CL', { hour12: false })}</p>
                       </div>
                       <div className={`w-2 h-2 rounded-full ${t.status === 'COMPLETED' ? 'bg-emerald-500' : t.status === 'CANCELLED' ? 'bg-rose-500' : t.status === 'WAITING' ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
                     </div>

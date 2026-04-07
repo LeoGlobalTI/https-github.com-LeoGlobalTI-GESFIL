@@ -100,8 +100,8 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
         
         <div className="flex flex-col items-center md:items-end">
           <div className="text-4xl md:text-6xl font-extrabold tracking-tighter leading-none tabular-nums text-indigo-50">
-            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            <span className="text-xl md:text-2xl ml-2 opacity-30">{now.toLocaleTimeString([], { second: '2-digit' })}</span>
+            {now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            <span className="text-xl md:text-2xl ml-2 opacity-30">{now.toLocaleTimeString('es-CL', { second: '2-digit', hour12: false })}</span>
           </div>
           <div className="text-[10px] md:text-sm font-bold text-slate-500 mt-2 uppercase tracking-[0.2em]">
             {now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}

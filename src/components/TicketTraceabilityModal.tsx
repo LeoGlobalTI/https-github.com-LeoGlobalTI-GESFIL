@@ -10,7 +10,7 @@ interface TicketTraceabilityModalProps {
 }
 
 const TicketTraceabilityModal: React.FC<TicketTraceabilityModalProps> = ({ ticket, service, station, onClose }) => {
-  const formatTime = (ts?: number) => ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '---';
+  const formatTime = (ts?: number) => ts ? new Date(ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '---';
   
   const getDuration = (start?: number, end?: number) => {
     if (!start || !end) return null;
