@@ -3,6 +3,9 @@ import { Service, Printer, PrinterType } from '@/types';
 import { PrinterService } from '@/services/PrinterService';
 import { useQmsStore } from '@/state/useQmsStore';
 
+/**
+ * Propiedades del componente TotemView.
+ */
 interface TotemViewProps {
   services: Service[];
   nextSequence: Record<string, number>;
@@ -10,6 +13,9 @@ interface TotemViewProps {
   printers: Printer[];
 }
 
+/**
+ * Información del ticket emitido para mostrar en pantalla.
+ */
 interface IssuedTicketInfo {
   code: string;
   serviceName: string;
@@ -18,6 +24,10 @@ interface IssuedTicketInfo {
   isPriority: boolean;
 }
 
+/**
+ * Componente principal del Tótem de autoservicio.
+ * Gestiona la selección de servicios, emisión de tickets y la impresión.
+ */
 const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTicket, printers }) => {
   const { state, isServiceActive: checkActive } = useQmsStore();
   const [issuedTicket, setIssuedTicket] = useState<IssuedTicketInfo | null>(null);
@@ -28,6 +38,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
   const [clickCount, setClickCount] = useState(0);
   const [printError, setPrintError] = useState<string | null>(null);
 
+  // Filtra servicios activos según la configuración de las estaciones
   const availableServices = useMemo(() => {
     return services.filter(service => 
       state.stations.some(station => 
@@ -38,6 +49,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     );
   }, [services, state.stations, checkActive]);
 
+  // Efecto para activar modo administrador oculto
   useEffect(() => {
     if (clickCount >= 5) {
       setShowDock(true);
@@ -49,7 +61,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     }
   }, [clickCount]);
 
-  // Keep-alive: Prevent screen from going to sleep
+  // Keep-alive: Previene que la pantalla se apague por inactividad
   useEffect(() => {
     let wakeLock: any = null;
 
@@ -57,7 +69,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
       try {
         if ('wakeLock' in navigator) {
           wakeLock = await (navigator as any).wakeLock.request('screen');
-          console.log('Wake Lock is active');
+          console.log('Wake Lock activo');
         }
       } catch (err) {
         console.error(`${err.name}, ${err.message}`);
@@ -66,9 +78,9 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
 
     requestWakeLock();
 
-    // Fallback: minor periodic update to keep tab active
+    // Fallback: ping periódico para mantener la pestaña activa
     const keepAlive = setInterval(() => {
-      console.log('Totem Keep-alive ping');
+      console.log('Ping de Keep-alive del Tótem');
     }, 30000);
 
     const handleVisibilityChange = () => {
@@ -90,6 +102,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     setClickCount(prev => prev + 1);
   };
 
+  // Estilos para el dock administrativo oculto
   const dockStyle = (
     <style>{`
       .dock-nav {
@@ -100,6 +113,12 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     `}</style>
   );
 
+  /**
+   * Proceso de emisión de ticket:
+   * 1. Solicita el ticket a la API (Supabase).
+   * 2. Muestra feedback en pantalla.
+   * 3. Ejecuta la lógica de impresión (Bridge, USB, Red o Navegador).
+   */
   const handleIssue = async (service: Service) => {
     if (isPriority === null || isIssuing) return;
 
@@ -119,11 +138,11 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     setIsIssuing(true);
 
     try {
-      // Emitimos el ticket al store y esperamos el resultado real
+      // Emisión del ticket al store y espera del resultado
       const ticket = await onIssueTicket(service.id, isPriority);
       
       if (ticket) {
-        // Mostramos la pantalla de éxito con el código real retornado por la DB
+        // Actualiza el estado para mostrar el ticket generado
         setIssuedTicket({
           code: ticket.code,
           serviceName: service.name,
@@ -151,6 +170,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
           time: horaStr
         };
 
+        // Distribución de impresión según impresoras activas
         if (activePrinters.length > 0) {
           activePrinters.forEach(printer => {
             PrinterService.printTicket(printer, ticketData, printer.type === PrinterType.BROWSER ? printWindow : undefined).catch(err => {
@@ -160,7 +180,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
             });
           });
         } else {
-          // Si no hay impresoras configuradas, usamos el modo navegador como fallback
+          // Fallback: Impresión virtual mediante navegador
           const virtualPrinter: Printer = {
             id: 'virtual-browser',
             name: 'Navegador',
@@ -179,14 +199,14 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
       }
     } catch (error) {
       if (printWindow) printWindow.close();
-      console.error('Error issuing ticket:', error);
+      console.error('Error al emitir ticket:', error);
     } finally {
       setIsIssuing(false);
       setLoadingServiceId(null);
     }
   };
 
-  // Temporizador para volver al menú principal (4 segundos)
+  // Temporizador para volver al menú principal después de emitir el ticket (6 segundos)
   useEffect(() => {
     if (issuedTicket) {
       const closeTimer = setTimeout(() => {
@@ -197,6 +217,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     }
   }, [issuedTicket]);
 
+  // Componente para renderizar errores de impresión
   const renderPrintError = () => printError && (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md animate-bounce">
       <div className="bg-rose-600 text-white p-4 rounded-2xl shadow-2xl border-2 border-rose-400 flex items-start gap-3">
@@ -214,6 +235,9 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     </div>
   );
 
+  // --- RENDERIZADO ---
+
+  // Pantalla de éxito (Ticket emitido)
   if (issuedTicket) {
     return (
       <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-6 md:p-12 bg-slate-50 animate-fade-in print:bg-white print:p-0 print:min-h-0">
@@ -327,6 +351,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     );
   }
 
+  // Pantalla de selección de tipo de atención (General/Preferente)
   if (isPriority === null) {
     return (
       <div className="max-w-5xl mx-auto px-8 py-12 min-h-[calc(100vh-8rem)] flex flex-col justify-center">
@@ -376,6 +401,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
     );
   }
 
+  // Pantalla de selección de servicios
   return (
     <div className="max-w-6xl mx-auto px-8 py-12">
       {renderPrintError()}
@@ -402,7 +428,7 @@ const TotemView: React.FC<TotemViewProps> = ({ services, nextSequence, onIssueTi
             className={`group relative w-full min-h-[180px] rounded-[2.5rem] overflow-hidden bg-white border border-slate-200/60 shadow-sm hover:shadow-xl hover:shadow-indigo-100/30 hover:-translate-y-1 active:scale-[0.97] transition-all duration-500 text-left flex flex-col ${isIssuing ? 'opacity-80 cursor-not-allowed' : ''}`}
             style={{ animationDelay: `${idx * 0.05}s` }}
           >
-            {/* Contenido de texto */}
+            {/* Contenido de texto del servicio */}
             <div className="flex-grow p-8 flex flex-col justify-center relative">
               {loadingServiceId === service.id && (
                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-[2.5rem]">

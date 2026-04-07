@@ -1,6 +1,13 @@
 import { Printer, PrinterType } from '@/types';
 
+/**
+ * Servicio encargado de gestionar la impresión de tickets.
+ * Soporta múltiples tipos de impresoras: USB, Red, Bridge (local) y Navegador.
+ */
 export class PrinterService {
+  /**
+   * Método principal para enviar un ticket a imprimir según el tipo de impresora configurado.
+   */
   static async printTicket(printer: Printer, ticketData: {
     code: string;
     prefix: string;
@@ -11,6 +18,7 @@ export class PrinterService {
     time: string;
   }, targetWindow?: Window | null) {
     try {
+      // Estructura de selección de método de impresión según el tipo
       if (printer.type === PrinterType.USB) {
         return await this.printUSB(printer, ticketData);
       } else if (printer.type === PrinterType.NETWORK) {
@@ -32,7 +40,8 @@ export class PrinterService {
       }
     } catch (error: any) {
       console.error("Error en printTicket:", error);
-      // Si falla el USB o Bridge por acceso denegado o dispositivo ocupado, intentamos fallback a browser
+      
+      // Proceso de recuperación: Si falla la impresión física, intenta usar el navegador como fallback
       const isAccessDenied = 
         error.name === 'SecurityError' || 
         error.name === 'NetworkError' ||
@@ -49,22 +58,22 @@ export class PrinterService {
     }
   }
 
+  /**
+   * Construye la cadena de comandos ESC/POS para impresoras térmicas.
+   */
   private static getEscPosString(data: any): string {
     // --- Comandos ESC/POS (Estándar Epson) ---
     const ESC = "\x1B";
     const GS = "\x1D";
-    const INIT = ESC + "@";               // Inicializar
+    const INIT = ESC + "@";               // Inicializar impresora
     const CENTRAR = ESC + "a\x01";        // Alinear al centro
-    const NEGRITA_ON = ESC + "E\x01";     // Negrita activada
-    const NEGRITA_OFF = ESC + "E\x00";    // Negrita desactivada
-    const TAMANO_NORMAL = GS + "!\x00";   // Fuente normal
-    const TAMANO_GRANDE = GS + "!\x11";   // Doble ancho y alto para el turno
-    const CORTE = GS + "V" + String.fromCharCode(65) + String.fromCharCode(3);
+    const NEGRITA_ON = ESC + "E\x01";     // Activar negrita
+    const NEGRITA_OFF = ESC + "E\x00";    // Desactivar negrita
+    const TAMANO_NORMAL = GS + "!\x00";   // Fuente tamaño normal
+    const TAMANO_GRANDE = GS + "!\x11";   // Doble ancho y alto para el número de turno
+    const CORTE = GS + "V" + String.fromCharCode(65) + String.fromCharCode(3); // Comando de corte de papel
 
-    // --- Formateo de Fecha y Hora (Siguiendo tu ejemplo) ---
-    // Nota: Usamos los datos que vienen del componente para mantener consistencia
-    // pero aplicamos el estilo de tu ejemplo si es necesario.
-    
+    // Construcción del ticket
     let ticket = INIT + CENTRAR;
     
     // Encabezado
@@ -81,7 +90,7 @@ export class PrinterService {
       ticket += NEGRITA_ON + "--- PREFERENTE ---\n\n" + NEGRITA_OFF;
     }
     
-    // Cuerpo: Área
+    // Cuerpo: Área de atención
     ticket += NEGRITA_ON + "ÁREA DE ATENCIÓN\n";
     ticket += NEGRITA_OFF + data.serviceName + "\n\n";
     
@@ -89,22 +98,28 @@ export class PrinterService {
     ticket += `${data.date} - ${data.time}\n`;
     ticket += "Gracias por su visita\n";
     
-    // Espacio final y corte
+    // Espacio final y corte de papel
     ticket += "\n\n\n\n" + CORTE;
 
     return ticket;
   }
 
+  /**
+   * Convierte la cadena ESC/POS a formato binario (Uint8Array) para envío a hardware.
+   */
   private static getEscPosCommands(data: any): Uint8Array {
     const encoder = new TextEncoder();
     return encoder.encode(this.getEscPosString(data));
   }
 
+  /**
+   * Envía el ticket a un Bridge local (servidor Node.js en la misma red) mediante HTTP POST.
+   */
   private static async printBridge(printer: Printer, data: any) {
     const bridgeUrl = printer.address || 'http://localhost:3001/imprimir';
     const commands = this.getEscPosString(data);
 
-    // Timeout de 8 segundos para evitar bloqueos prolongados
+    // Timeout de 8 segundos para evitar bloqueos prolongados en la interfaz
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -123,7 +138,7 @@ export class PrinterService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        // Detectar si el error viene de ngrok (túnel caído)
+        // Detectar si el error proviene de ngrok (túnel caído o mal configurado)
         if (errorText.includes('ngrok') || response.status === 502 || response.status === 504) {
           throw new Error(`BRIDGE DESCONECTADO (Error ${response.status}): El túnel de ngrok está abierto pero el PC local no responde. Verifique que el Bridge esté ejecutándose en su PC.`);
         }
@@ -135,6 +150,7 @@ export class PrinterService {
       clearTimeout(timeoutId);
       console.error("Error enviando a Bridge de impresión:", e);
       
+      // Manejo de timeout
       if (e.name === 'AbortError') {
         throw new Error("TIEMPO DE ESPERA AGOTADO: El Bridge no respondió en 8 segundos. Verifique la conexión a internet en el PC de la impresora.");
       }
@@ -155,6 +171,9 @@ export class PrinterService {
     }
   }
 
+  /**
+   * Fallback: Abre una ventana del navegador para imprimir usando el diálogo de impresión nativo.
+   */
   private static printBrowser(data: any, targetWindow?: Window | null) {
     const printWindow = targetWindow || window.open('', '_blank', 'width=300,height=450');
     if (!printWindow) {
@@ -162,6 +181,7 @@ export class PrinterService {
       return false;
     }
 
+    // Generación de HTML para el ticket
     const html = `
       <html>
         <head>
@@ -202,12 +222,16 @@ export class PrinterService {
     return true;
   }
 
+  /**
+   * Envía comandos directamente a una impresora USB utilizando la API WebUSB.
+   */
   private static async printUSB(printer: Printer, data: any) {
     let device: any = null;
     try {
       const nav = navigator as any;
-      if (!nav.usb) throw new Error("WebUSB not supported");
+      if (!nav.usb) throw new Error("WebUSB no soportado por este navegador");
 
+      // Buscar dispositivo por VID/PID
       const devices = await nav.usb.getDevices();
       console.log("Dispositivos USB vinculados encontrados:", devices.length);
       
@@ -217,7 +241,6 @@ export class PrinterService {
 
       if (!device) {
         console.error("No se encontró el dispositivo con dirección:", printer.address);
-        console.log("Direcciones disponibles:", devices.map((d: any) => `VID_${d.vendorId}_PID_${d.productId}`));
         throw new Error("Dispositivo no encontrado. Asegúrese de haberlo vinculado en configuración.");
       }
 
@@ -237,11 +260,11 @@ export class PrinterService {
         await device.selectConfiguration(1);
       }
       
-      // Encontrar la interfaz de impresión
+      // Proceso de búsqueda de interfaz y endpoint de salida (bulk out)
       let interfaceNum = -1;
       let endpointOut = -1;
 
-      // Primero intentamos buscar la clase estándar de impresora (7)
+      // Intentar buscar interfaz de impresora estándar (clase 7)
       for (const iface of device.configuration.interfaces) {
         for (const alt of iface.alternates) {
           if (alt.interfaceClass === 7 || alt.interfaceClass === 255) { 
@@ -258,7 +281,7 @@ export class PrinterService {
         if (interfaceNum !== -1) break;
       }
 
-      // Si no encontramos por clase, buscamos cualquier endpoint de salida bulk
+      // Si no se encuentra por clase, buscar cualquier endpoint bulk out
       if (interfaceNum === -1) {
         for (const iface of device.configuration.interfaces) {
           for (const alt of iface.alternates) {
@@ -276,18 +299,20 @@ export class PrinterService {
       }
 
       if (interfaceNum === -1 || endpointOut === -1) {
-        throw new Error("No se encontró un canal de comunicación compatible en la impresora. Verifique que sea una impresora térmica ESC/POS.");
+        throw new Error("No se encontró un canal de comunicación compatible. Verifique que sea una impresora térmica ESC/POS.");
       }
 
+      // Reclamar interfaz para comunicación
       try {
         await device.claimInterface(interfaceNum);
       } catch (e: any) {
         if (e.name === 'NetworkError') {
-          throw new Error("La impresora está siendo usada por otra pestaña o aplicación. Ciérrela e intente de nuevo.");
+          throw new Error("La impresora está siendo usada por otra pestaña o aplicación.");
         }
         throw e;
       }
 
+      // Envío de comandos
       const commands = this.getEscPosCommands(data);
       await device.transferOut(endpointOut, commands);
       return true;
@@ -295,7 +320,7 @@ export class PrinterService {
       console.error("Error de impresión USB:", error);
       throw error;
     } finally {
-      // Intentar cerrar el dispositivo siempre para liberar el recurso
+      // Liberar recurso
       try {
         if (device && device.opened) {
           await device.close();
@@ -306,8 +331,10 @@ export class PrinterService {
     }
   }
 
+  /**
+   * Envía el ticket a un proxy de impresión de red.
+   */
   private static async printNetwork(printer: Printer, data: any) {
-    // Si la dirección es una URL, intentamos enviar los datos a un proxy de impresión
     if (printer.address?.startsWith('http')) {
       try {
         const response = await fetch(printer.address, {
@@ -324,8 +351,6 @@ export class PrinterService {
       }
     }
 
-    // La impresión de red directa (TCP raw) desde el navegador es limitada por seguridad.
-    // Fallback informativo para guiar al usuario.
     console.warn("Impresión de red directa no soportada por el navegador.");
     throw new Error("La impresión de red requiere un agente de impresión local o configuración de proxy.");
   }

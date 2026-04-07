@@ -3,6 +3,9 @@ import { Ticket, Station, TicketStatus, Service } from '@/types';
 
 import { playNotificationSound } from '@/lib/audio';
 
+/**
+ * Propiedades del componente PublicDisplayView.
+ */
 interface PublicDisplayViewProps {
   tickets: Ticket[];
   stations: Station[];
@@ -10,20 +13,26 @@ interface PublicDisplayViewProps {
   displaySettings?: { notificationSound: string; notificationVolume?: number; notificationDuration?: number };
 }
 
+/**
+ * Componente principal de la pantalla pública.
+ * Muestra los llamados activos y la lista de espera.
+ */
 const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations, services, displaySettings }) => {
   const [now, setNow] = useState(new Date());
   const [lastCalledTicketId, setLastCalledTicketId] = useState<string | null>(null);
   const [lastRecalledCount, setLastRecalledCount] = useState<number>(0);
 
+  // Efecto para actualizar el reloj cada segundo
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     
+    // Keep-alive: Previene que la pantalla se apague por inactividad
     let wakeLock: any = null;
     const requestWakeLock = async () => {
       try {
         if ('wakeLock' in navigator) {
           wakeLock = await (navigator as any).wakeLock.request('screen');
-          console.log('Display Wake Lock active');
+          console.log('Wake Lock activo');
         }
       } catch (err) {
         console.error(`${err.name}, ${err.message}`);
@@ -32,8 +41,8 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
 
     requestWakeLock();
 
-    // Keep-alive fallback
-    const keepAlive = setInterval(() => console.log('Display Keep-alive ping'), 30000);
+    // Fallback: ping periódico para mantener la pestaña activa
+    const keepAlive = setInterval(() => console.log('Ping de Keep-alive del Display'), 30000);
 
     const handleVisibilityChange = () => {
       if (wakeLock !== null && document.visibilityState === 'visible') {
@@ -51,6 +60,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
     };
   }, []);
 
+  // Filtra y ordena los tickets que están siendo llamados o atendidos actualmente
   const activeCalls = useMemo(() => 
     tickets
       .filter(t => t.status === TicketStatus.CALLING || t.status === TicketStatus.ATTENDING)
@@ -61,6 +71,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
       .slice(0, 5),
   [tickets]);
 
+  // Efecto para reproducir sonido de notificación cuando hay un nuevo llamado
   useEffect(() => {
     const currentCalling = activeCalls.find(t => t.status === TicketStatus.CALLING);
     if (currentCalling) {
@@ -78,6 +89,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
     }
   }, [activeCalls, lastCalledTicketId, lastRecalledCount, displaySettings?.notificationSound, displaySettings?.notificationVolume, displaySettings?.notificationDuration]);
 
+  // Filtra y ordena los tickets en espera
   const waitingList = useMemo(() => 
     tickets
       .filter(t => t.status === TicketStatus.WAITING)
@@ -87,6 +99,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
 
   return (
     <div className="min-h-screen bg-[#020617] text-white p-6 md:p-12 font-sans flex flex-col overflow-hidden selection:bg-indigo-500">
+      {/* Encabezado: Logo, nombre y reloj */}
       <header className="flex flex-col md:flex-row justify-between items-center mb-10 md:mb-16 animate-fade-in gap-6">
         <div className="flex items-center gap-4 md:gap-8">
           <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-950">
@@ -109,6 +122,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
         </div>
       </header>
 
+      {/* Cuerpo principal: Llamados activos y lista de espera */}
       <main className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center gap-4 px-4 mb-4">
@@ -116,6 +130,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
             <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.5em]">Llamados Activos</h2>
           </div>
           
+          {/* Lista de llamados activos */}
           <div className="grid grid-cols-1 gap-6">
             {activeCalls.map((ticket, idx) => {
               const station = stations.find(s => s.id === ticket.stationId);
@@ -164,6 +179,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
           </div>
         </div>
 
+        {/* Lista de espera */}
         <div className="lg:col-span-4">
            <div className="bg-[#0f172a] rounded-[4rem] p-10 flex flex-col border border-slate-800/50 shadow-2xl h-full">
              <div className="flex items-center justify-between mb-10">
@@ -197,6 +213,7 @@ const PublicDisplayView: React.FC<PublicDisplayViewProps> = ({ tickets, stations
         </div>
       </main>
 
+      {/* Pie de página */}
       <footer className="mt-12 bg-slate-900/30 py-6 md:py-4 px-6 md:px-10 rounded-3xl md:rounded-full border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
            <span className="text-[9px] md:text-[11px] font-black text-indigo-500 uppercase tracking-[0.4em]">GESFIL ENTERPRISE</span>
